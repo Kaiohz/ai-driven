@@ -1,5 +1,7 @@
 .env
 .env.*
+.DS_Store
+service.json
 /ai-driven/claude/.claude/agents
 /ai-driven/claude/.claude/skills/
 /ai-driven/opencode/.opencode/agents/

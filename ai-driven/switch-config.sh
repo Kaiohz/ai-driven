@@ -1,21 +1,38 @@
 #!/usr/bin/env bash
 # Usage: switch-config.sh [spark|cloud|hybrid]
-# Commute le dossier agents de opencode ET de Claude Code (symlink) — mêmes profils.
+# Commute le profil agents de opencode. Profil actif: agents/ (vrai dossier)
+# contenant des symlinks PAR FICHIER vers agents-<profil>/*.md.
+#
 #   spark  : tout sur qwen3.6-35b (soludevtech)
 #   cloud  : implémentations glm-5.3 (ollama-cloud), reviewers + QA kimi-k3
 #   hybrid : implémentations qwen3.6-35b (soludevtech), reviewers + QA glm-5.3-flash
-# Sans argument: affiche la config active des deux outils.
+#
+# v2: la discovery des agents ne suit PAS les symlinks de répertoires
+# (le dossier agents doit être un vrai dossier) — on symlinde les .md un par un.
+# Sans argument: affiche la config active.
 set -eu
 
 OC_DIR=~/.config/opencode
-CC_DIR=~/.claude
 profiles=(spark cloud hybrid)
 target="${1:-}"
 
+active_profile() {
+  # Détermine le profil actif depuis la cible du premier symlink fichier de agents/
+  local first dest
+  first=$(find "${OC_DIR}/agents" -maxdepth 1 -type l -print -quit 2>/dev/null || true)
+  if [[ -z "$first" ]]; then
+    echo '(inconnu — agents/ est un vrai dossier sans symlinks fichiers)'
+    return
+  fi
+  dest=$(readlink "$first")
+  for p in "${profiles[@]}"; do
+    [[ "$dest" == *"/agents-${p}/"* ]] && { echo "$p"; return; }
+  done
+  echo '(inconnu)'
+}
+
 show() {
-  echo "Profil actif:"
-  echo "  opencode    : $(readlink "${OC_DIR}/agents" 2>/dev/null || echo '(dossier direct)')"
-  echo "  claude code : $(readlink "${CC_DIR}/agents" 2>/dev/null || echo '(dossier direct)')"
+  echo "Profil actif: $(active_profile)"
   echo
   echo "Profils disponibles: ${profiles[*]}"
   echo "Usage: $0 <${profiles[*]}>"
@@ -31,35 +48,16 @@ case "$target" in
   *) echo "Profil inconnu: $target" >&2; echo "Usage: $0 <${profiles[*]}> (sans arg = état)" >&2; exit 1 ;;
 esac
 
-[[ -d "${OC_DIR}/agents-${target}" ]] || { echo "Manquant: ${OC_DIR}/agents-${target}" >&2; exit 1; }
-[[ -d "${CC_DIR}/agents-${target}" ]] || { echo "Manquant: ${CC_DIR}/agents-${target}" >&2; exit 1; }
+src="${OC_DIR}/agents-${target}"
+[[ -d "$src" ]] || { echo "Manquant: $src" >&2; exit 1; }
 
-# opencode
-rm -f "${OC_DIR}/agents"
-ln -s "agents-${target}" "${OC_DIR}/agents"
+# Remplace le contenu de agents/ par des symlinks fichiers du profil cible.
+# NB: agents-${target}/ peut lui-même contenir des sous-agents en .md plats.
+mkdir -p "${OC_DIR}/agents"
+find "${OC_DIR}/agents" -maxdepth 1 -type l -delete 2>/dev/null || true
+find "${src}" -maxdepth 1 -name '*.md' | while read -r f; do
+  ln -sf "$f" "${OC_DIR}/agents/$(basename "$f")"
+done
 
-# claude code
-rm -f "${CC_DIR}/agents"
-ln -s "agents-${target}" "${CC_DIR}/agents"
-
-# claude code : modèle par défaut dans settings.json
-python3 - "$CC_DIR/settings.json" "$target" <<'PY'
-import json, sys
-path, profile = sys.argv[1], sys.argv[2]
-default_model = {
-    "spark": "qwen3.6-35b",
-    "cloud": "glm-5.3",
-    "hybrid": "qwen3.6-35b",
-}[profile]
-with open(path) as f:
-    s = json.load(f)
-s.setdefault("env", {})
-s["env"]["ANTHROPIC_MODEL"] = default_model
-with open(path, "w") as f:
-    json.dump(s, f, indent=2)
-    f.write("\n")
-PY
-
-echo "Profil actif: ${target}"
-echo "  opencode    : agents -> $(readlink "${OC_DIR}/agents")"
-echo "  claude code : agents -> $(readlink "${CC_DIR}/agents")"
+echo "Profil actif: ${target} ($(ls "${OC_DIR}/agents"/*.md 2>/dev/null | wc -l | tr -d ' ') agents)"
+echo "  NB: relance les sessions TUI pour recharger la liste d'agents."

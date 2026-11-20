@@ -1,7 +1,7 @@
 # Jest Commands
 
 ```bash
-# Run all tests (behavioral + unit)
+# Run all tests (behavioral)
 npm run test
 
 # Watch mode
@@ -15,9 +15,6 @@ npx jest test/behavioral/users/create-user.spec.ts --verbose
 
 # Single test by name
 npx jest --testNamePattern="creates and persists a new user"
-
-# Unit-only exceptions (pure domain, scripts, consumers)
-npx jest test/unit/
 ```
 
 ## Best Practices

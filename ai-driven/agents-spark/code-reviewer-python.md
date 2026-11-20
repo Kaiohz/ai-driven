@@ -1,17 +1,30 @@
 ---
-name: code-reviewer-python
 description: Code review agent for Python/FastAPI. Auto-loads code-reviewer, hexagonal-python-patterns, async-python-patterns, performance-audit, and test-writer-python skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing Python/FastAPI code in the implementation loop.
-model: soludevtech/qwen3.6-35b
+model: soludevtech/ornith-1.5-35b
 
-permission:
-  mcp_*: deny
-  skill:
-    "*": deny
-    code-reviewer: allow
-    hexagonal-python-patterns: allow
-    async-python-patterns: allow
-    performance-audit: allow
-    test-writer-python: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: code-reviewer
+    effect: allow
+  - action: skill
+    resource: hexagonal-python-patterns
+    effect: allow
+  - action: skill
+    resource: async-python-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
+  - action: skill
+    resource: test-writer-python
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

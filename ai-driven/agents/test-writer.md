@@ -1,19 +1,40 @@
 ---
-name: test-writer
 description: Use to write behavioral and integration tests. Detects the stack (Python/FastAPI, React/TypeScript, NestJS/TypeScript) and loads the matching test-writer skill. Invoke when you need to test a route, endpoint, use case, component, hook, controller, or adapter.
-permission:
-  mcp_*: deny
-  skill:
-    "*": deny
-    test-writer-python: allow
-    test-writer-react: allow
-    test-writer-nestjs: allow
-    hexagonal-python-patterns: allow
-    hexagonal-react-patterns: allow
-    hexagonal-nestjs-patterns: allow
-    async-python-patterns: allow
-    async-react-patterns: allow
-    async-nestjs-patterns: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: test-writer-python
+    effect: allow
+  - action: skill
+    resource: test-writer-react
+    effect: allow
+  - action: skill
+    resource: test-writer-nestjs
+    effect: allow
+  - action: skill
+    resource: hexagonal-python-patterns
+    effect: allow
+  - action: skill
+    resource: hexagonal-react-patterns
+    effect: allow
+  - action: skill
+    resource: hexagonal-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: async-python-patterns
+    effect: allow
+  - action: skill
+    resource: async-react-patterns
+    effect: allow
+  - action: skill
+    resource: async-nestjs-patterns
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

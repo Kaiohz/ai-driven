@@ -1,15 +1,27 @@
 ---
-name: nestjs-hexagonal
 description: Use it for implementing the task asked by the user
+model: soludevtech/qwen3.6-35b
 
-permission:
-  mcp_*: deny
-  context7_*: allow
-  skill:
-    "*": deny
-    hexagonal-nestjs-patterns: allow
-    async-nestjs-patterns: allow
-    performance-audit: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: "context7_*"
+    resource: "*"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: hexagonal-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: async-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

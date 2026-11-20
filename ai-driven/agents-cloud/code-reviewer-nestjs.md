@@ -1,17 +1,30 @@
 ---
-name: code-reviewer-nestjs
 description: Code review agent for NestJS/TypeScript. Auto-loads code-reviewer, hexagonal-nestjs-patterns, async-nestjs-patterns, performance-audit, and test-writer-nestjs skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing NestJS/TypeScript code in the implementation loop.
-model: ollama-cloud/deepseek-v4.1-flash
+model: ollama-cloud/minimax-m3.1-flash
 
-permission:
-  mcp_*: deny
-  skill:
-    "*": deny
-    code-reviewer: allow
-    hexagonal-nestjs-patterns: allow
-    async-nestjs-patterns: allow
-    performance-audit: allow
-    test-writer-nestjs: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: code-reviewer
+    effect: allow
+  - action: skill
+    resource: hexagonal-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: async-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
+  - action: skill
+    resource: test-writer-nestjs
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

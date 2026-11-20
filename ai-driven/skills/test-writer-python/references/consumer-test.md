@@ -5,7 +5,7 @@
 ## Decision order (reminder)
 1. Route exists → `router-test.md` (HTTP request)
 2. Consumer triggers it → **THIS template** (real published message)
-3. Neither → `use-case-test.md` / pure domain (`tests/unit/`)
+3. Neither → leave the logic as-is, untested; never delete it, never invent an artificial entry point
 
 ## Test structure
 ```

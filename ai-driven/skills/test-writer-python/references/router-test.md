@@ -19,10 +19,9 @@ tests/
 │   └── <feature>/
 │       ├── test_create_user.py
 │       └── test_get_order.py
-└── unit/                        # ONLY: pure domain without HTTP entry, scripts, consumers
 ```
 
-One file per endpoint, grouped by feature directory. Every branch of the endpoint lives in the same file.
+One file per entry point (route or consumer), grouped by feature directory. Every branch of the entry point lives in the same file. No `tests/unit/`: logic exercised by neither a route nor a consumer stays untested — never delete it and never invent an artificial endpoint to cover it.
 
 ## conftest.py — real app + client + testcontainers PG
 

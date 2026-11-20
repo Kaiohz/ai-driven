@@ -1,15 +1,27 @@
 ---
-name: fastapi-hexagonal
 description: Use it for implementing the task asked by the user
+model: soludevtech/qwen3.6-35b
 
-permission:
-  mcp_*: deny
-  context7_*: allow
-  skill:
-    "*": deny
-    hexagonal-python-patterns: allow
-    async-python-patterns: allow
-    performance-audit: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: "context7_*"
+    resource: "*"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: hexagonal-python-patterns
+    effect: allow
+  - action: skill
+    resource: async-python-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

@@ -5,7 +5,7 @@
 ## Decision order (reminder)
 1. Route exists → `router-test.md` (Supertest request)
 2. Processor/consumer/scheduler triggers it → **THIS template** (real published message or enqueued job)
-3. Neither → `use-case-test.md` / `repository-test.md` / pure domain (`test/unit/`)
+3. Neither → leave the logic as-is, untested; never delete it, never invent an artificial entry point
 
 ## Test structure
 ```

@@ -4,9 +4,9 @@ Use [@testcontainers/nodejs](https://node.testcontainers.org/) for tests against
 
 ## When to use testcontainers
 - **Behavioral tests from the router** — the default strategy: real Postgres behind the real AppModule (see `router-test.md`)
-- **Integration tests** that must validate real Postgres / MongoDB / Redis / Kafka / RabbitMQ behavior
-- **Adapter tests** for Postgres-specific behavior (JSONB, `ON CONFLICT`, enum types, PostGIS, Mongo aggregations)
-- **S3 / SQS / SNS** tests via LocalStack container (instead of mocking the AWS SDK)
+- **Behavioral tests through a processor** — real broker behind the real AppModule (see `processor-test.md`)
+- **Behavioral tests exercising adapter-specific behavior** (JSONB, `ON CONFLICT`, enum types, PostGIS, Mongo aggregations) — still reached through the entry point, the container backs the real chain
+- **S3 / SQS / SNS** via LocalStack container (instead of mocking the AWS SDK) — asserted through the entry point that triggers the upload
 - **Event-driven** flows that must validate real Redis pub/sub, NATS, or RabbitMQ
 
 ## Docker unavailable? Fail fast
@@ -20,13 +20,13 @@ pnpm add -D @testcontainers/nodejs
 pnpm add -D @testcontainers/postgresql @testcontainers/redis @testcontainers/rabbitmq
 ```
 
-## Postgres container (adapter integration test)
+## Postgres container (real infra behind a behavioral test)
 
 ```typescript
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { DataSource } from 'typeorm';
 
-describe('PostgresUserRepository (integration)', () => {
+describe('User upsert via real Postgres — behavioral', () => {
   let ds: DataSource;
   let container: StartedPostgreSqlContainer;
 
@@ -81,7 +81,7 @@ describe('PostgresUserRepository (integration)', () => {
 ```typescript
 import { RedisContainer } from '@testcontainers/redis';
 
-describe('RedisEventBus (integration)', () => {
+describe('RedisEventBus flow — behavioral', () => {
   let container: StartedRedisContainer;
   let bus: RedisEventBus;
 

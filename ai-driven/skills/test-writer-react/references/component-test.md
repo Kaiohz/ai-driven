@@ -1,6 +1,6 @@
-# Testing a Component
+# Testing a Component (behavioral, in `tests/behavioral/<feature>/`)
 
-Real Zustand store (seeded in `beforeEach`); MSW for the API boundary. Query by role. AAA pattern.
+Real Zustand store (seeded in `beforeEach`); MSW for the API boundary. Query by role. AAA pattern. All component tests live in `tests/behavioral/<feature>/` — one file per component under test.
 
 ```tsx
 import { screen, waitFor } from '@testing-library/react'

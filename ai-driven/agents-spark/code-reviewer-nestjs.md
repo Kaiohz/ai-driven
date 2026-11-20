@@ -1,17 +1,30 @@
 ---
-name: code-reviewer-nestjs
 description: Code review agent for NestJS/TypeScript. Auto-loads code-reviewer, hexagonal-nestjs-patterns, async-nestjs-patterns, performance-audit, and test-writer-nestjs skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing NestJS/TypeScript code in the implementation loop.
-model: soludevtech/qwen3.6-35b
+model: soludevtech/ornith-1.5-35b
 
-permission:
-  mcp_*: deny
-  skill:
-    "*": deny
-    code-reviewer: allow
-    hexagonal-nestjs-patterns: allow
-    async-nestjs-patterns: allow
-    performance-audit: allow
-    test-writer-nestjs: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: code-reviewer
+    effect: allow
+  - action: skill
+    resource: hexagonal-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: async-nestjs-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
+  - action: skill
+    resource: test-writer-nestjs
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

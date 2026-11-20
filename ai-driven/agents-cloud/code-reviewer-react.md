@@ -1,17 +1,30 @@
 ---
-name: code-reviewer-react
 description: Code review agent for React/TypeScript. Auto-loads code-reviewer, hexagonal-react-patterns, async-react-patterns, performance-audit, and test-writer-react skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing React/TypeScript code in the implementation loop.
-model: ollama-cloud/deepseek-v4.1-flash
+model: ollama-cloud/minimax-m3.1-flash
 
-permission:
-  mcp_*: deny
-  skill:
-    "*": deny
-    code-reviewer: allow
-    hexagonal-react-patterns: allow
-    async-react-patterns: allow
-    performance-audit: allow
-    test-writer-react: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: code-reviewer
+    effect: allow
+  - action: skill
+    resource: hexagonal-react-patterns
+    effect: allow
+  - action: skill
+    resource: async-react-patterns
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
+  - action: skill
+    resource: test-writer-react
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

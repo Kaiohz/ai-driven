@@ -1,0 +1,126 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": true,
+  "providers": {
+    "soludevtech": {
+      "name": "Soludev (LiteLLM)",
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": {
+        "baseURL": "https://litellm.soludev.tech/v1",
+        "apiKey": "REPLACE_WITH_YOUR_API_KEY",
+        "timeout": 900000,
+        "chunkTimeout": 600000
+      },
+      "models": {
+        "qwen3.6-35b": {
+          "name": "Qwen 3.6 35B A3B NVFP4 (Spark, thinking)",
+          "limit": { "context": 262144, "output": 16384 }
+        },
+        "qwen3.6-35b-nothink": {
+          "name": "Qwen 3.6 35B A3B NVFP4 (Spark, no thinking)",
+          "modelID": "qwen3.6-35b",
+          "limit": { "context": 262144, "output": 16384 },
+          "settings": { "chat_template_kwargs": { "enable_thinking": false } }
+        },
+        "ornith-1.5-35b": {
+          "name": "Ornith 1.5 35B A3B NVFP4 MTP (Spark, thinking)",
+          "limit": { "context": 262144, "output": 32768 }
+        },
+        "ornith-1.5-35b-nothink": {
+          "name": "Ornith 1.5 35B A3B NVFP4 MTP (Spark, no thinking)",
+          "modelID": "ornith-1.5-35b",
+          "limit": { "context": 262144, "output": 32768 },
+          "settings": { "chat_template_kwargs": { "enable_thinking": false } }
+        }
+      }
+    },
+    "ollama": {
+      "name": "Ollama (local)",
+      "package": "aisdk:@ai-sdk/openai-compatible",
+      "settings": { "baseURL": "http://localhost:11434/v1" },
+      "models": {
+        "qwen2.5-coder-7b-32k": {
+          "name": "Qwen2.5 Coder 7B 32k (local)",
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "qwen2.5-coder:14b": {
+          "name": "Qwen2.5 Coder 14B (local)",
+          "limit": { "context": 32768, "output": 4096 }
+        },
+        "gemma4:12b-mlx": {
+          "name": "Gemma 4 12B MLX (local)",
+          "limit": { "context": 131072, "output": 8192 }
+        },
+        "qwen3.5:9b-mlx": {
+          "name": "Qwen 3.5 9B MLX (local)",
+          "limit": { "context": 262144, "output": 8192 }
+        },
+        "qwen3.5:4b-mlx": {
+          "name": "Qwen 3.5 4B MLX (local)",
+          "limit": { "context": 262144, "output": 8192 }
+        }
+      }
+    }
+  },
+  "permissions": [
+    { "action": "skill", "resource": "*", "effect": "allow" },
+    { "action": "external_directory", "resource": "../../../**", "effect": "allow" },
+    { "action": "external_directory", "resource": "/Users/yohan/.config/opencode/skills/**", "effect": "allow" },
+    { "action": "external_directory", "resource": "/Users/yohan/.agents/skills/**", "effect": "allow" }
+  ],
+  "agents": {
+    "plan": {
+      "permissions": [
+        { "action": "skill", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "build": {
+      "permissions": [
+        { "action": "skill", "resource": "*", "effect": "deny" },
+        { "action": "skill", "resource": "feature-implementation*", "effect": "allow" },
+        { "action": "skill", "resource": "loop-implementation-review*", "effect": "allow" },
+        { "action": "skill", "resource": "loop-trace", "effect": "allow" },
+        { "action": "skill", "resource": "test-writer-*", "effect": "allow" },
+        { "action": "skill", "resource": "code-reviewer", "effect": "allow" },
+        { "action": "skill", "resource": "code-simplifier", "effect": "allow" },
+        { "action": "skill", "resource": "githubpr", "effect": "allow" },
+        { "action": "skill", "resource": "linter", "effect": "allow" },
+        { "action": "skill", "resource": "sonarfix", "effect": "allow" },
+        { "action": "skill", "resource": "trivyfix", "effect": "allow" },
+        { "action": "skill", "resource": "tester-qa", "effect": "allow" },
+        { "action": "skill", "resource": "documentation-writer", "effect": "allow" },
+        { "action": "skill", "resource": "hexagonal-*", "effect": "allow" },
+        { "action": "skill", "resource": "async-*", "effect": "allow" },
+        { "action": "skill", "resource": "vercel-react-best-practices", "effect": "allow" },
+        { "action": "skill", "resource": "performance-audit", "effect": "allow" }
+      ]
+    }
+  },
+  "mcp": {
+    "servers": {
+      "chrome-devtools": {
+        "type": "local",
+        "command": ["npx", "-y", "chrome-devtools-mcp@0.21.0"]
+      },
+      "open-design": {
+        "type": "local",
+        "command": [
+          "/Users/yohan/Library/Application Support/Open Design/launcher/channels/stable/namespaces/release-stable/versions/0.19.2/payload/Open Design.app/Contents/Frameworks/Open Design Helper.app/Contents/MacOS/Open Design Helper",
+          "/Users/yohan/Library/Application Support/Open Design/launcher/channels/stable/namespaces/release-stable/versions/0.19.2/payload/Open Design.app/Contents/Resources/app/prebundled/daemon/daemon-cli.mjs",
+          "mcp"
+        ],
+        "environment": {
+          "OD_DATA_DIR": "/Users/yohan/Library/Application Support/Open Design/namespaces/release-stable/data",
+          "OD_SIDECAR_IPC_PATH": "/tmp/open-design/ipc/release-stable/daemon.sock",
+          "OD_MCP_BOOTSTRAP_COMMAND": "/usr/bin/open",
+          "OD_MCP_BOOTSTRAP_ARGS": "[\"-g\",\"-j\",\"/Applications/Open Design.app\",\"--args\",\"--headless\"]",
+          "ELECTRON_RUN_AS_NODE": "1"
+        }
+      },
+      "jira": {
+        "type": "remote",
+        "url": "https://mcp.atlassian.com/v1/sse"
+      }
+    }
+  }
+}

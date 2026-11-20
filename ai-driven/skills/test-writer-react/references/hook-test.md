@@ -1,6 +1,6 @@
-# Testing a Custom Hook
+# Testing a Custom Hook (behavioral, in `tests/behavioral/<feature>/`)
 
-`renderHook`, `act`, `waitFor`. Real internal state; mocked external calls.
+`renderHook`, `act`, `waitFor`. Real internal state; mocked external calls. All hook tests live in `tests/behavioral/<feature>/` — only for hooks whose behavior is not UI-observable (generic/shared infrastructure); if a component consumes the hook, test through that component.
 
 > **Decision order — prefer the component as the entry point.** If any component consumes this hook and the behavior is observable in the UI, test THROUGH that component (`component-test.md`) instead of rendering the hook directly. Use `renderHook` ONLY when the hook is not yet consumed by a component, or is generic shared infrastructure. Never mock internal modules to make the hook testable — mock the network (MSW) it calls.
 

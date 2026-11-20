@@ -4,9 +4,9 @@ Use [testcontainers-python](https://testcontainers-python.readthedocs.io/) for t
 
 ## When to use testcontainers
 - **Behavioral tests from the router** — the default strategy: real Postgres behind the full real chain (see `router-test.md`)
-- **Integration tests** that must validate real Postgres / MongoDB / Redis / Kafka / RabbitMQ behavior
-- **Adapter tests** for Postgres-specific behavior (JSONB, `ON CONFLICT`, enum types, PostGIS)
-- **S3 / SQS / SNS** tests via [LocalStack](https://docs.localstack.cloud/) container (instead of mocking boto3)
+- **Behavioral tests through a consumer** — real broker behind the full real chain (see `consumer-test.md`)
+- **Behavioral tests exercising adapter-specific behavior** (JSONB, `ON CONFLICT`, enum types, PostGIS) — still reached through the entry point, the container backs the real chain
+- **S3 / SQS / SNS** via [LocalStack](https://docs.localstack.cloud/) container (instead of mocking boto3) — asserted through the entry point that triggers the upload
 - **Event-driven** flows that must validate real Redis pub/sub or NATS
 
 ## Docker unavailable? Fail fast
@@ -18,7 +18,7 @@ Use [testcontainers-python](https://testcontainers-python.readthedocs.io/) for t
 uv add --dev testcontainers[postgres,redis,kafka,rabbitmq]
 ```
 
-## Postgres container (adapter integration test)
+## Postgres container (real infra behind a behavioral test)
 
 ```python
 import pytest
@@ -130,7 +130,7 @@ Never mark DB-dependent tests with `pytest.mark.skip` when Docker is missing —
 Pure domain tests (no DB) still run without Docker; everything touching infrastructure requires it:
 ```bash
 uv run pytest                       # full suite — Docker required
-uv run pytest tests/unit/           # pure domain only (no DB) — no Docker needed
+uv run pytest tests/behavioral/       # everything behavioral — DB infra needed
 ```
 
 ## Best practices

@@ -17,10 +17,9 @@ test/
 │   └── <feature>/
 │       ├── create-user.spec.ts
 │       └── get-user.spec.ts
-└── unit/                          # ONLY: pure domain without HTTP entry, scripts, consumers
 ```
 
-One file per endpoint, grouped by feature directory. Every branch of the endpoint lives in the same file.
+One file per entry point (route or processor), grouped by feature directory. Every branch of the entry point lives in the same file. No `test/unit/`: logic exercised by neither a route nor a processor stays untested — never delete it and never invent an artificial entry point to cover it.
 
 ## Behavioral test — real AppModule + testcontainers PG
 

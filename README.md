@@ -1,127 +1,160 @@
 # AI-Driven Development Workflow
 
-A multi-tool AI coding assistant configuration system that standardizes software development workflows across Claude Code, OpenCode, and GitHub Copilot.
+A multi-tool AI coding assistant configuration system that standardizes software development workflows across OpenCode.
 
 ## Overview
 
 This repository provides unified AI agent and skill configurations designed to:
 
-- **Standardize development workflows** across multiple AI coding assistants
+- **Standardize development workflows** across AI coding assistants
 - **Enforce architectural best practices** (Hexagonal Architecture, SOLID, TDD)
 - **Provide specialized agents** for each phase of software development
 - **Integrate external tools** via MCP (Model Context Protocol)
 - **Support multiple technology stacks** (FastAPI, NestJS, React, K3s)
-
-## Supported AI Tools
-
-| Tool | Configuration | Status |
-|------|--------------|--------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `ai-driven/claude/` | Full support |
-| [OpenCode AI](https://opencode.ai) | `ai-driven/opencode/` | Full support |
-| [GitHub Copilot](https://github.com/features/copilot) | `ai-driven/copilot/` | Full support |
 
 ## Repository Structure
 
 ```
 prompt-rules/
 ├── README.md
-├── .gitignore
-├── ai-driven/
-│   ├── agents/                         # Shared agent definitions (source of truth)
-│   │   ├── product-owner.md
-│   │   ├── test-writer-python.md
-│   │   ├── test-writer-nestjs.md
-│   │   ├── test-writer-react.md
-│   │   ├── fastapi-hexagonal.md
-│   │   ├── nestjs-hexagonal.md
-│   │   ├── react-hexagonal.md
-│   │   ├── code-reviewer.md
-│   │   ├── code-simplifier.md
-│   │   ├── documentation-writer.md
-│   │   ├── tester-qa.md
-│   │   └── k3s-devops.md
-│   │
-│   ├── claude/                         # Claude Code configuration
-│   │   ├── .claude.example.json        # MCP server config template
-│   │   └── .claude/
-│   │       ├── CLAUDE.md               # Main workflow instructions
-│   │       ├── settings.json           # Permissions (deny list)
-│   │       ├── COPY_AGENTS_FOLDER_HERE # Marker: copy agents/ here
-│   │       └── COPY_SKILLS_FOLDER_HERE # Marker: copy skills/ here
-│   │
-│   ├── copilot/                        # GitHub Copilot configuration
-│   │   ├── mcp.json                    # MCP server config
-│   │   └── .github/
-│   │       ├── copilot-instructions.md # Main workflow instructions
-│   │       ├── COPY_AGENTS_FOLDER_HERE # Marker: copy agents/ here
-│   │       └── COPY_SKILLS_FOLDER_HERE # Marker: copy skills/ here
-│   │
-│   ├── opencode/                       # OpenCode AI configuration
-│   │   ├── COPY_SKILLS_FOLDER_HERE     # Marker: copy skills/ here
-│   │   └── .opencode/
-│   │       ├── opencode.example.json   # Agent registry & MCP config template
-│   │       ├── AGENTS.md               # Workflow instructions
-│   │       ├── package.json            # Plugin dependencies (@opencode-ai/plugin)
-│   │       └── COPY_AGENTS_FOLDER_HERE # Marker: copy agents/ here
-│   │
-│   └── mcp/                            # MCP server infrastructure
-│       ├── docker-compose.yml          # Atlassian + Context7 services
-│       └── env.atlassian.example       # Atlassian env template
-│
-└── skills/                             # Shared skill definitions (source of truth)
-    ├── brainstorming/                  # Design-first brainstorming with visual companion
-    │   ├── SKILL.md
-    │   ├── spec-document-reviewer-prompt.md
-    │   ├── visual-companion.md
-    │   └── scripts/                    # Browser-based visual companion server
-    ├── feature-implementation/         # Orchestrator: 6-phase dev workflow
-    ├── githubpr/                       # Full PR lifecycle (branch → CI → merge)
-    ├── sonarfix/                       # SonarQube issue remediation
-    ├── trivyfix/                       # Trivy vulnerability remediation
-    ├── dbanalyze/                      # Database schema analysis (SchemaCrawler)
-    ├── popeyescan/                     # Kubernetes cluster health audit (Popeye)
-    └── frontend-design/                # Production-grade UI design
+├── .gitignore                          # Excludes local/secret files (service.json, .env, .DS_Store…)
+└── ai-driven/                          # The live ~/.config/opencode/ content (sanitized)
+    ├── AGENTS.md                       # Global instructions for all agents
+    ├── switch-config.sh                 # Switches the active agent profile (symlinks)
+    │
+    ├── agents/                         # ACTIVE profile snapshot (real files)
+    ├── agents-cloud/                   # Profile: cloud (ollama-cloud models)
+    ├── agents-spark/                   # Profile: spark (soludevtech LiteLLM models)
+    ├── agents-hybrid/                  # Profile: hybrid (mixed models + extra agents)
+    │
+    ├── skills/                         # 32 skills (+ _shared/ trace helpers)
+    ├── commands/                       # 32 command shims (one per skill)
+    │
+    ├── opencode.json                   # Main config — API keys REDACTED
+    ├── opencode-cloud.json             # Alternate profile config — API keys REDACTED
+    ├── opencode-spark.json             # Alternate profile config — API keys REDACTED
+    ├── opencode.jsonc                  # Empty schema stub
+    ├── opencode.example.json           # Agent-registry template (Anthropic models)
+    └── cli.json                        # TUI preferences
 ```
 
-### Source of truth and copy convention
+> **Secret policy**: the `opencode*.json` files are committed with `"apiKey": "REPLACE_WITH_YOUR_API_KEY"` placeholders. Never commit real API keys. Local files that contain secrets (`service.json`, `.env*`) are gitignored.
 
-Agents live in `ai-driven/agents/` and skills in `skills/`. Each tool-specific directory contains `COPY_AGENTS_FOLDER_HERE` and `COPY_SKILLS_FOLDER_HERE` marker files indicating where to copy them. The `.gitignore` excludes tool-specific copies so the shared directories remain the single source of truth.
+### Source of truth and sync convention
+
+`~/.config/opencode/` is the live source of truth. To sync this repo from it:
+
+```bash
+LIVE=~/.config/opencode
+REPO=ai-driven
+rsync -a --delete --exclude='.DS_Store' --exclude='.git' "$LIVE/agents-cloud/" "$REPO/agents-cloud/"
+rsync -a --delete --exclude='.DS_Store' --exclude='.git' "$LIVE/agents-spark/"  "$REPO/agents-spark/"
+rsync -a --delete --exclude='.DS_Store' --exclude='.git' "$LIVE/agents-hybrid/" "$REPO/agents-hybrid/"
+rsync -a --delete --exclude='.DS_Store' --exclude='.git' "$LIVE/skills/"       "$REPO/skills/"
+rsync -a --delete --exclude='.DS_Store' "$LIVE/commands/"                      "$REPO/commands/"
+rsync -aL --delete --exclude='.DS_Store' "$LIVE/agents/"                       "$REPO/agents/"   # dereference active-profile symlinks
+cp "$LIVE/AGENTS.md" "$LIVE/switch-config.sh" "$LIVE/cli.json" "$LIVE/opencode.jsonc" "$LIVE/opencode.example.json" "$REPO/"
+for f in opencode.json opencode-cloud.json opencode-spark.json; do
+  sed -E 's/"apiKey": "[^"]*"/"apiKey": "REPLACE_WITH_YOUR_API_KEY"/g' "$LIVE/$f" > "$REPO/$f"
+done
+```
+
+## Agent Profiles
+
+The same 11 core agents exist in three profiles with different models. `switch-config.sh <profile>` repopulates `agents/` with per-file symlinks to the chosen profile's `.md` files (OpenCode does not follow directory symlinks).
+
+| Profile | Implementation agents | Reviewer + QA agents | Extras |
+|---------|------------------------|----------------------|--------|
+| `cloud` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/minimax-m3.1-flash` | `security-agent`: `ollama-cloud/glm-5.3` |
+| `spark` | `soludevtech/qwen3.6-35b` | `soludevtech/ornith-1.5-35b` | `security-agent`: `soludevtech/ornith-1.5-35b` |
+| `hybrid` | `soludevtech/qwen3.6-35b` | `ollama-cloud/glm-5.3-flash` | `security-agent`: `ollama-cloud/glm-5.3-flash` + `agno-engineer`, `langchain-engineer`, `promptfoo-engineer` |
+
+```bash
+./switch-config.sh            # show active profile
+./switch-config.sh hybrid     # switch (restart TUI sessions afterwards)
+```
 
 ## Specialized Agents
 
-12 agents, each designed for a specific phase of development:
+11 core agents per profile, each designed for a specific phase of development:
 
 | Agent | Purpose |
 |-------|---------|
 | `product-owner` | Requirements analysis, acceptance criteria, user stories |
-| `test-writer-python` | TDD with pytest, real implementations, mock only external boundaries |
-| `test-writer-nestjs` | Jest + Supertest, SQLite in-memory, real implementations |
-| `test-writer-react` | Vitest + React Testing Library, real implementations |
+| `test-writer` | TDD tests for the detected stack (pytest / Jest+Supertest / Vitest+RTL) |
 | `fastapi-hexagonal` | FastAPI backend with hexagonal architecture |
 | `nestjs-hexagonal` | NestJS backend with hexagonal architecture |
 | `react-hexagonal` | React frontend with hexagonal architecture |
-| `code-reviewer` | Code review (correctness, security, performance, maintainability, testability, architecture) |
-| `code-simplifier` | Refactoring for clarity and maintainability |
-| `documentation-writer` | README and API documentation with curl examples |
-| `tester-qa` | E2E testing with Playwright (QA mode + Bug Hunt mode) |
+| `code-reviewer-python` | Python code review — 6 dimensions, auto-loads matching skills |
+| `code-reviewer-nestjs` | NestJS code review — 6 dimensions, auto-loads matching skills |
+| `code-reviewer-react` | React code review — 6 dimensions, auto-loads matching skills |
+| `tester-qa` | E2E QA (docker stack relaunch + curl/Chrome DevTools MCP) and Playwright spec transcription |
 | `k3s-devops` | K3s/Flux CD infrastructure management (GitOps) |
+| `security-agent` | Security questions, focused vulnerability reviews, and the full 6-phase audit/pen-test workflow via the exclusive `security-audit` skill |
 
-All agents declare `model: opus` in their frontmatter. Tools like OpenCode can override the model per-agent in their configuration.
+The `hybrid` profile adds: `agno-engineer`, `langchain-engineer`, `promptfoo-engineer`.
+
+### Authorization model
+
+Every agent declares its permissions in frontmatter — **deny all skills, allow only its own**:
+
+```yaml
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: <own-skills>
+    effect: allow
+```
+
+- `opencode.json` additionally scopes the built-in `plan` agent (all skills denied) and `build` agent (explicit skill allowlist).
+- The `security-audit` skill is exclusive to `security-agent`: no other agent or profile allows it.
+- Every agent starts with a **blocking skill gate** (STEP 0): its skills must be loaded before any file is read.
 
 ## Skills
 
-8 skills providing specialized capabilities:
+32 skills providing specialized capabilities:
 
 | Skill | Purpose |
 |-------|---------|
-| `brainstorming` | Design-first workflow: explore context, ask questions, propose approaches, write spec, review loop, then hand off to implementation |
-| `feature-implementation` | Master orchestrator: 6-phase workflow (Requirements → TDD → Implementation → QA → Docs → PR/Merge) |
-| `githubpr` | Full PR lifecycle: branch naming (`<JIRA-ID>/description`), draft PR, CI polling, merge |
-| `sonarfix` | SonarQube remediation: retrieve issues, group by severity, fix in batches, verify tests |
-| `trivyfix` | Trivy remediation: scan (fs/image/repo), group by severity and type, fix in batches, verify |
-| `dbanalyze` | Database schema analysis: SchemaCrawler lint + information_schema extraction + normalization analysis (1NF/2NF/3NF) + Alembic migration generation |
-| `popeyescan` | Kubernetes cluster health: Popeye scan with K3s noise filtering, prioritized action plan (P1/P2/P3) |
-| `frontend-design` | Production-grade UI: distinctive design, bold aesthetics, no generic AI look |
+| `async-nestjs-patterns` | NestJS async: Observables interop, event emitter, Bull queues, microservices, WebSockets |
+| `async-python-patterns` | Python asyncio: event loop, TaskGroup, concurrency pitfalls, testing |
+| `async-react-patterns` | Suspense, `use()`, server components, streaming SSR, TanStack Query |
+| `book-to-skill` | Convert books/epubs into structured skills |
+| `brainstorming` | Design-first workflow with visual companion and spec review loop |
+| `code-reviewer` | 6-dimension review rubric (correctness, security, performance, maintainability, testability, architecture) |
+| `code-simplifier` | Clarity/maintainability refactoring preserving behavior |
+| `dbanalyze` | Schema analysis: SchemaCrawler lint, 1NF/2NF/3NF, Alembic migrations |
+| `documentation-writer` | README + API documentation with curl examples |
+| `feature-implementation` | 6-phase dev workflow (skills version) |
+| `feature-implementation-agents` | Same workflow, delegating every step to dedicated agents |
+| `feature-implementation-light` | Fast 4-step loop (TDD → implement → review → simplify) |
+| `githubpr` | PR lifecycle: branch, commit, push, PR, CI polling (no auto-merge) |
+| `gof-design-patterns` | Gang of Four design patterns reference |
+| `hexagonal-nestjs-patterns` | NestJS hexagonal architecture rules |
+| `hexagonal-python-patterns` | FastAPI/Python hexagonal architecture rules |
+| `hexagonal-react-patterns` | React/TypeScript hexagonal architecture rules |
+| `iac-review` | Terraform/Kubernetes/Flux review checklists |
+| `linter` | ruff + pyright (Python) / eslint + prettier (TypeScript) |
+| `loop-implementation-review` | Implementation loop wrapping feature-implementation with e2e QA + review gate |
+| `loop-implementation-review-agents` | Same loop, agent-driven |
+| `loop-implementation-review-agents-light` | Lightweight agent loop |
+| `performance-audit` | Deep performance audit for Python and React |
+| `popeyescan` | Kubernetes cluster health (Popeye) |
+| `security-audit` | Cloudflare security-audit-skill: 6-phase audit/pen-test workflow (exclusive to `security-agent`) |
+| `sonarfix` | SonarQube issue remediation |
+| `test-writer-nestjs` | Behavioral Jest/Supertest tests on the real AppModule |
+| `test-writer-python` | Behavioral pytest/httpx tests on the real FastAPI app |
+| `test-writer-react` | Component/e2e Vitest + RTL + MSW tests |
+| `tester-qa` | Docker stack relaunch + curl/Chrome DevTools QA, Playwright transcription |
+| `trivyfix` | Trivy vulnerability remediation |
+| `vercel-react-best-practices` | React/Next.js performance rules from Vercel Engineering |
+
+`skills/_shared/` holds the trace protocol helpers shared by the loop skills. `commands/` contains one command shim per skill so each is invocable as `/skill-name`.
 
 ## Development Workflow
 
@@ -132,45 +165,44 @@ The `feature-implementation` skill orchestrates the full development cycle throu
   ┌──────────────────────────────────────────────────────────────────┐
   │ product-owner                                                    │
   │ Clarify requirements, acceptance criteria, edge cases            │
-  └──────────────────────────────┬───────────────────────────────────┘
-                                 │
-                                 ▼
+  └───────────────────────────────────┬──────────────────────────────┘
+                                      ▼
   PHASE 2: TEST-FIRST DEVELOPMENT
   ┌──────────────────────────────────────────────────────────────────┐
-  │ test-writer-python / test-writer-nestjs / test-writer-react      │
+  │ test-writer (python / nestjs / react, detected stack)            │
   │ Write failing tests (TDD Red-Green-Refactor)                     │
-  └──────────────────────────────┬───────────────────────────────────┘
-                                 │
-                                 ▼
+  └───────────────────────────────────┬──────────────────────────────┘
+                                      ▼
   PHASE 3: IMPLEMENTATION
   ┌──────────────────────────────────────────────────────────────────┐
   │ fastapi-hexagonal / nestjs-hexagonal / react-hexagonal           │
   │ Implement using hexagonal architecture, make tests pass          │
-  └──────────────────────────────┬───────────────────────────────────┘
-                                 │
-                                 ▼
+  └───────────────────────────────────┬──────────────────────────────┘
+                                      ▼
   PHASE 4: QUALITY ASSURANCE
   ┌──────────────────────────────────────────────────────────────────┐
-  │ code-reviewer → code-simplifier → sonarfix → trivyfix            │
-  │ Review, simplify, fix static analysis issues, fix vulnerabilities│
-  └──────────────────────────────┬───────────────────────────────────┘
-                                 │
-                                 ▼
+  │ code-reviewer → code-simplifier → linter → sonarfix → trivyfix   │
+  │ Review, simplify, lint, fix static analysis, fix vulnerabilities │
+  └───────────────────────────────────┬──────────────────────────────┘
+                                      ▼
   PHASE 5: DOCUMENTATION & VERIFICATION
   ┌──────────────────────────────────────────────────────────────────┐
   │ tester-qa → documentation-writer                                 │
-  │ E2E testing (Playwright), update docs                            │
-  └──────────────────────────────┬───────────────────────────────────┘
-                                 │
-                                 ▼
-  PHASE 6: OPEN PR & MERGE
+  │ E2E testing (Playwright), update docs                           │
+  └───────────────────────────────────┬──────────────────────────────┘
+                                      ▼
+  PHASE 6: OPEN PR
   ┌──────────────────────────────────────────────────────────────────┐
   │ githubpr                                                         │
-  │ Branch → Push → Draft PR → CI polling → Ready → Merge            │
+  │ Branch → Push → Draft PR → CI polling → Ready (merge is manual)  │
   └──────────────────────────────────────────────────────────────────┘
 ```
 
 Phase 4 includes feedback loops: if sonarfix or trivyfix find issues, iterate back to implementation and re-run the check.
+
+### Security auditing (optional)
+
+For security questions, focused vulnerability reviews, or explicit full audits/pen-tests, invoke the `security-agent`. It carries the `security-audit` skill (Cloudflare's security-audit-skill): reconnaissance → coverage-led hunting waves → candidate validation → structured findings (`findings.json` validated against `report-schema.json`) → independent record verification → target-neutral report. By default it answers in guidance mode; the full 6-phase workflow and its output directory run only on explicit request.
 
 ### Brainstorming workflow (optional, before implementation)
 
@@ -184,8 +216,6 @@ For new features or creative work, invoke `brainstorming` before `feature-implem
 6. Automated spec review loop (subagent, max 5 iterations)
 7. User reviews written spec
 8. Hand off to `feature-implementation`
-
-Includes an optional visual companion (browser-based) for mockups and diagrams during brainstorming.
 
 ## Architecture & Principles
 
@@ -204,11 +234,11 @@ All implementation agents enforce:
 │  │                                                │  │
 │  │  ┌─────────────────────────────────────────┐   │  │
 │  │  │  DOMAIN                                  │   │  │
-│  │  │  (entities, ports, services)             │   │  │
-│  │  │  Pure language — zero external imports   │   │  │
+│  │  │  (entities, ports, services)            │   │  │
+│  │  │  Pure language — zero external imports  │   │  │
 │  │  └─────────────────────────────────────────┘   │  │
 │  └───────────────────────────────────────────────┘  │
-└───────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────┘
 ```
 
 ### SOLID + KISS
@@ -223,9 +253,10 @@ All implementation agents enforce:
 ### Testing Philosophy
 
 - **Real implementations** for all internal components (repositories, services, use cases)
+- **Testcontainers** for real infrastructure (Postgres, Redis, Kafka) — no SQLite fallback, fail fast when Docker is unavailable
 - **Mocks only** for outbound adapters toward external systems (APIs, email, S3, Stripe)
+- **Behavioral tests from the router**: httpx AsyncClient on the real FastAPI app / Supertest on the real NestJS AppModule / RTL on the real component
 - **TDD**: Write failing tests before implementation
-- **Coverage targets**: 80% backend, 70% frontend
 
 ## Supported Technology Stacks
 
@@ -277,147 +308,48 @@ All implementation agents enforce:
 
 ## MCP Integrations
 
-External tool integrations via Model Context Protocol, served through Docker Compose:
-
-### Atlassian (Jira + Confluence)
-
-Issue management and documentation. Runs on port 9000.
-
-```bash
-# Start the MCP services
-cd ai-driven/mcp
-cp env.atlassian.example .env.atlassian  # Fill in your credentials
-docker compose up -d
-```
-
-### Context7
-
-Library documentation and code examples lookup. Runs on port 9021.
-
-### Chrome DevTools (Claude Code only)
-
-Browser inspection and E2E testing via Chrome DevTools Protocol. Runs as a local npx command, configured in `.claude.json`.
+| Server | Type | Purpose |
+|--------|------|---------|
+| `chrome-devtools` | local (`npx chrome-devtools-mcp@0.21.0`) | Browser inspection and E2E testing (tester-qa agent) |
 
 ## Installation
 
-### Prerequisites
-
-- [Docker](https://docker.com) and Docker Compose
-- Access to one of the supported AI tools
-
-### 1. Start MCP services
+### 1. Copy the configuration
 
 ```bash
-cd ai-driven/mcp
-cp env.atlassian.example .env.atlassian
-# Edit .env.atlassian with your Jira/Confluence credentials
-docker compose up -d
+# From this repo into your OpenCode global config
+cp -r ai-driven/agents-cloud ai-driven/agents-spark ai-driven/agents-hybrid ~/.config/opencode/
+rsync -a ai-driven/skills/  ~/.config/opencode/skills/
+rsync -a ai-driven/commands/ ~/.config/opencode/commands/
+cp ai-driven/AGENTS.md ai-driven/switch-config.sh ai-driven/cli.json ~/.config/opencode/
+cp ai-driven/opencode.json ~/.config/opencode/opencode.json
 ```
 
-### 2. Set up your AI tool
+### 2. Set your API keys
 
-#### Claude Code
+Edit `~/.config/opencode/opencode.json` and replace every `REPLACE_WITH_YOUR_API_KEY` with your real provider keys (LiteLLM, Ollama Cloud…). Never commit the file with real keys back to this repo — the sync convention above re-redacts them.
+
+### 3. Activate a profile
 
 ```bash
-# Copy the .claude directory to your project
-cp -r ai-driven/claude/.claude /path/to/your/project/
-
-# Copy MCP config template
-cp ai-driven/claude/.claude.example.json /path/to/your/project/.claude.json
-
-# Copy shared agents into the .claude directory
-cp ai-driven/agents/*.md /path/to/your/project/.claude/agents/
-
-# Copy shared skills into the .claude directory
-cp -r skills/* /path/to/your/project/.claude/skills/
+chmod +x ~/.config/opencode/switch-config.sh
+~/.config/opencode/switch-config.sh cloud   # or spark / hybrid
 ```
 
-#### OpenCode
-
-```bash
-# Copy the .opencode directory to your project
-cp -r ai-driven/opencode/.opencode /path/to/your/project/
-
-# Copy shared agents
-cp ai-driven/agents/*.md /path/to/your/project/.opencode/agents/
-
-# Copy shared skills
-cp -r skills/* /path/to/your/project/.opencode/skills/
-
-# Install plugin dependencies
-cd /path/to/your/project/.opencode && bun install
-```
-
-#### GitHub Copilot
-
-```bash
-# Copy .github directory to your project
-cp -r ai-driven/copilot/.github /path/to/your/project/
-
-# Copy MCP config
-cp ai-driven/copilot/mcp.json /path/to/your/project/
-
-# Copy shared agents
-cp ai-driven/agents/*.md /path/to/your/project/.github/agents/
-
-# Copy shared skills
-cp -r skills/* /path/to/your/project/.github/skills/
-```
-
-### 3. Usage
-
-```bash
-# In your AI coding tool, say:
-"Implement ticket PROJ-123"
-
-# Or invoke specific skills:
-"/brainstorming"             # Design-first workflow
-"/sonarfix"                  # Fix SonarQube issues
-"/trivyfix"                  # Fix Trivy vulnerabilities
-"/dbanalyze"                 # Audit database schema
-"/popeyescan"                # Audit K3s cluster health
-```
+Restart your OpenCode TUI sessions to reload the agent list.
 
 ## Customization
 
 ### Adding a new agent
 
-Create a markdown file in `ai-driven/agents/`:
-
-```markdown
----
-name: my-agent
-description: What this agent does
-model: opus
----
-
-# My Agent
-
-Instructions...
-```
-
-Then copy it to the relevant tool directories.
+Create a markdown file in `ai-driven/agents-<profile>/` with the frontmatter used by the existing agents (description, model, mode, permissions with deny-all + own allowlist), then run `switch-config.sh <profile>`.
 
 ### Adding a new skill
 
-Create a directory in `skills/` with a `SKILL.md`:
-
-```markdown
----
-name: my-skill
-description: What this skill does
----
-
-# My Skill
-
-Workflow and instructions...
-```
-
-Then copy it to the relevant tool directories.
+Create a directory in `skills/` with a `SKILL.md` (frontmatter: `name`, `description`), add a command shim in `commands/`, and allow it in the agents that need it (keep deny-all as the default for every other agent).
 
 ## Resources
 
-- [Claude Code Documentation](https://docs.anthropic.com/en/docs/claude-code)
 - [OpenCode Documentation](https://opencode.ai/docs)
-- [GitHub Copilot Documentation](https://docs.github.com/en/copilot)
+- [Cloudflare security-audit-skill](https://github.com/cloudflare/security-audit-skill)
 - [Model Context Protocol](https://modelcontextprotocol.io/)

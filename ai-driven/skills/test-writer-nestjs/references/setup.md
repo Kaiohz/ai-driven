@@ -2,9 +2,6 @@
 
 ## Test Structure
 ```
-src/
-└── domain/
-    └── (pure logic — no co-located tests; non-HTTP logic goes to test/unit/)
 test/
 ├── setup.ts                             # real AppModule bootstrap + testcontainers + auth helpers
 ├── fixtures/
@@ -13,14 +10,11 @@ test/
 │   └── <feature>/
 │       ├── create-user.spec.ts          # Supertest on the real AppModule
 │       └── get-user.spec.ts
-└── unit/                                # ONLY: pure domain without HTTP entry, scripts, consumers
-    ├── create-user.use-case.spec.ts     # queue/cron/pure-domain exceptions
-    └── typeorm-user.repository.spec.ts  # adapter-specific SQL exceptions
 ```
 
-- One file per endpoint under `behavioral/<feature>/`, named after the endpoint (`<endpoint>.spec.ts`).
+- One file per entry point under `behavioral/<feature>/`, named after the entry point (`<endpoint>.spec.ts`).
 - No isolated controller tests — behavioral tests cover the chain.
-- All exceptions formerly co-located in `src/` move to `test/unit/`.
+- NO `test/unit/`: every behavior is exercised through a real entry point. Logic exercised by neither stays as-is but untested — never delete it, never invent an endpoint for it.
 
 ## jest configuration (package.json)
 

@@ -1,17 +1,33 @@
 ---
-name: react-hexagonal
 description: Use it for implementing the task asked by the user
+model: soludevtech/qwen3.6-35b
 
-permission:
-  mcp_*: deny
-  context7_*: allow
-  open-design_*: allow
-  skill:
-    "*": deny
-    hexagonal-react-patterns: allow
-    async-react-patterns: allow
-    vercel-react-best-practices: allow
-    performance-audit: allow
+mode: all
+permissions:
+  - action: "mcp_*"
+    resource: "*"
+    effect: deny
+  - action: "context7_*"
+    resource: "*"
+    effect: allow
+  - action: "open-design_*"
+    resource: "*"
+    effect: allow
+  - action: skill
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: hexagonal-react-patterns
+    effect: allow
+  - action: skill
+    resource: async-react-patterns
+    effect: allow
+  - action: skill
+    resource: vercel-react-best-practices
+    effect: allow
+  - action: skill
+    resource: performance-audit
+    effect: allow
 ---
 ## STEP 0 — BLOCKING SKILL GATE (overrides task-prompt ordering)
 

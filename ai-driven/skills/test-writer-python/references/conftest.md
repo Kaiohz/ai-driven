@@ -10,11 +10,10 @@ tests/
 │   └── <feature>/
 │       ├── test_create_user.py
 │       └── test_get_order.py
-└── unit/                          # ONLY: pure domain without HTTP entry, scripts, consumers
 ```
 
-- `behavioral/<feature>/test_<endpoint>.py` — one file per endpoint; every branch is an HTTP call.
-- `unit/` — pure domain logic without an HTTP entry point, standalone scripts, queue/cron consumers. Never an endpoint test.
+- `behavioral/<feature>/test_<entry_point>.py` — one file per entry point (route or consumer); every branch is a real behavioral call through that entry point.
+- NO `tests/unit/`: every behavior is exercised through a real entry point. Logic exercised by neither stays as-is but untested — never delete it, never invent an endpoint for it.
 
 ## conftest.py — real app + httpx client + real DB session
 

@@ -5,23 +5,26 @@
 src/
 ├── components/
 │   └── CartSummary/
-│       ├── CartSummary.tsx
-│       └── CartSummary.test.tsx     # Co-located component tests
+│       └── CartSummary.tsx         # no co-located tests in src/
 ├── hooks/
 │   └── useCheckout/
-│       ├── useCheckout.ts
-│       └── useCheckout.test.ts      # Co-located hook tests
+│       └── useCheckout.ts          # no co-located tests in src/
 └── infrastructure/
     └── api/
-        └── __mocks__/               # Manual mocks for external adapters
-            └── payment-client.ts
+        └── (external adapters — tested via MSW at the network boundary)
 tests/
 ├── setup.ts                         # Global test setup (MSW, matchers)
+├── behavioral/                      # ALL tests live here
+│   └── <feature>/
+│       ├── CartSummary.test.tsx
+│       └── useCheckout.test.ts
 ├── utils/
 │   └── render.tsx                   # Custom render with providers
 └── fixtures/
     └── external.ts                  # Shared vi.fn() factories for external calls
 ```
+
+- ALL test files live in `tests/behavioral/` — no co-located `*.test.tsx` in `src/`, no `tests/unit/`. `tests/utils/` and `tests/fixtures/` hold support code only, never test files.
 
 ## vitest.config.ts
 
@@ -35,6 +38,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './tests/setup.ts',
+    include: ['tests/behavioral/**/*.test.{ts,tsx}'],
   },
 })
 ```

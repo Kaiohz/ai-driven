@@ -145,6 +145,41 @@ A bug is confirmed only when you have **observed evidence** — a response, a lo
 
 ### BACK_ONLY — QA via curl (API)
 
+Validate every endpoint of the feature against the relaunched stack.
+
+**MANDATORY — save all curl commands and responses.** Every curl execution must be recorded to `<LOOP_DIR>/qa/curl-logs.json` (create the `qa/` dir first). Each entry is a JSON object with the exact curl command, URL, method, headers, body, HTTP status, and response body. This enables the documentation-writer to embed full QA traces in the loop report HTML:
+
+```json
+[
+  {
+    "step": "1",
+    "description": "GET /profiles/duplicates",
+    "curl": "curl -s -w '\\nHTTP STATUS: %{http_code}\\n' 'http://localhost:8000/pickpro/rest/v1/profiles/duplicates' -H 'Authorization: Bearer <TOKEN>'",
+    "url": "http://localhost:8000/pickpro/rest/v1/profiles/duplicates",
+    "method": "GET",
+    "headers": { "Authorization": "Bearer <TOKEN>", "Content-Type": "application/json" },
+    "body": null,
+    "status": 200,
+    "response": [ ...actual JSON response... ],
+    "type": "happy"
+  }
+]
+```
+
+Use `python3 -c` to append JSON entries atomically after each curl. The full file must be valid JSON parseable by any tool.
+
+```bash
+# Example pattern — always use -v or -w to capture status + body
+curl -s -w "\n\nHTTP STATUS: %{http_code}\n" "URL" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"key": "value"}' > /tmp/qa_response_$$.tmp
+
+STATUS=$?
+# Parse the status from the -w output and the body from the file,
+# append to <LOOP_DIR>/qa/curl-logs.json
+```
+
 Validate every endpoint of the feature against the relaunched stack:
 
 ```bash
@@ -268,6 +303,7 @@ export default defineConfig({
     baseURL: process.env.BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    video: 'on',
   },
 });
 ```
@@ -423,6 +459,23 @@ npx playwright test tests/<feature>/ --reporter=list
 
 If they fail due to a real bug, keep them red and file a bug report. If they fail due to a selector or setup issue, fix and re-run.
 
+### Video mirror of the QA replay
+
+Every replayed spec is recorded: the e2e configs use `video: 'on'`, so each test produces a `.webm` under `test-results/`. After the replay, generate the self-contained HTML video report — ONE file on disk with every video embedded (base64 data URI, no server needed, plays with a simple double-click even after `test-results/` or the HTML report are cleaned):
+
+```bash
+node /Users/yohan/.config/opencode/skills/tester-qa/build-qa-video-report.js \
+  /Users/yohan/git/soludev/soludev-compose-apps/<app_name>/e2e
+```
+
+The script prints a mandatory pointer line you MUST include in your returned message:
+
+```
+QA_VIDEO_REPORT: <e2e>/qa-video-report.html (N videos, X KB)
+```
+
+Notes: run the script right after the replay (before any teardown could purge `test-results/`). The orchestrator and the user open the file directly from disk — no `show-report`, no HTTP server. Reference this pointer in your session summary as the video mirror of what you did in STEP 3 + STEP 4.
+
 ---
 
 ## Bug Hunt Mode
@@ -549,6 +602,12 @@ BUG-002 | High     | Frontend | <one-line root cause hypothesis>
 ```
 
 ### QA mode — Session Summary
+
+Always report the replay video mirror right after the table (the exact line printed by the generator script):
+
+```
+QA_VIDEO_REPORT: <app_name>/e2e/qa-video-report.html (N videos, X KB)
+```
 
 | Stack relaunched | Feature baseline | Passed | Failed | QA tests performed | New specs written | New specs passing |
 |-------------------|------------------|--------|--------|--------------------|------------------|-------------------|

@@ -1,6 +1,6 @@
 ---
 name: test-writer-nestjs
-description: "Write behavioral and integration tests for NestJS hexagonal backends. Jest, ts-jest, Supertest on the real AppModule. Golden rule: tests start from the router — full chain wired real (controller → use case → port → repo), testcontainers for real infra, mocks only for outbound external adapters (email, Stripe, S3). Use when testing a route, controller, use case, service, or adapter in a NestJS app."
+description: "Write behavioral tests for NestJS hexagonal backends. Jest, ts-jest, Supertest on the real AppModule. Golden rule: ALL tests go through a REAL behavioral entry point — Supertest on the real AppModule when a route exists, or a real published message/job when a processor triggers the logic. NO unit tests, NO integration tests, NO test/unit dir: ONLY test/behavioral/. testcontainers for real infra, mocks only for outbound external adapters (email, Stripe, S3). Use when testing a route, controller, use case, service, or adapter in a NestJS app."
 ---
 
 # Test Writer — NestJS
@@ -18,12 +18,12 @@ Write clear, maintainable tests for a NestJS hexagonal backend with Jest, ts-jes
 - The task is Python or React testing → use `test-writer-python` / `test-writer-react`
 
 ## 🎯 Golden Rule (non-negotiable)
-- **Test at the HIGHEST entry point available, in this strict order**:
+- **ALL tests go through a REAL behavioral entry point, in this strict order**:
   1. **Route exists → test from the route**: one HTTP request via Supertest against the REAL `AppModule` (never a rebuilt TestingModule that re-declares internal providers). Assert the HTTP response AND observable side effects (DB state, emitted events).
   2. **No route but a consumer/processor/scheduler triggers the logic → test through that entry point**: publish a REAL message to the real broker testcontainer (Bull queue job, Kafka/NATS message, cron tick) and wait for observable side effects — never invoke the processor/use case directly. A use case only reachable from a processor or cron is tested exactly the way production triggers it.
-  3. **Pure domain with NO entry point at all → `test/unit/` direct tests allowed** — but when the function is actually exercised by a chain, prefer asserting its effect through that chain.
+  3. **No route and no consumer? Never delete the logic and never invent an artificial endpoint just to test it.** Keep the logic as-is but do NOT write a direct unit test for it: coverage of such helpers, normalizers, or validators comes from the routes/processors that (directly or transitively) exercise them. If today nothing exercises them, simply leave them untested rather than bypassing the golden rule.
 - The whole chain runs real: Controller/Processor → Use Case → Port → Repository.
-- **A use case/service/adapter is NEVER the direct test subject** — it is covered through its entry point. If you find yourself instantiating a use case or service in a test while a route or processor can trigger it, STOP and test through the entry point.
+- **A use case/service/adapter is NEVER the direct test subject** — it is covered through its entry point. If you find yourself instantiating a use case or service in a test, STOP and test through the entry point.
 - **Real implementations** for ALL internal components (controllers, processors, use cases, services, ports, repositories, domain objects, TypeORM entities) — never mock or rewire an internal layer.
 - **Mocks** ONLY for outbound adapters toward external systems (third-party APIs, email, S3, Stripe, payment gateways) — via `overrideProvider` on the adapter class only.
 - **Real infrastructure** via testcontainers (Postgres / Redis / Kafka / RabbitMQ / LocalStack) — Docker is a hard requirement — see `references/testcontainers.md`. If Docker is unavailable, fail fast with a clear error; never silently fall back.
@@ -39,19 +39,18 @@ test/
 │   └── external.ts                      # mocks for external adapters (configurable failures)
 ├── behavioral/
 │   └── <feature>/
-│       └── <endpoint>.spec.ts           # EVERYTHING over HTTP — all branches
-└── unit/                                # ONLY: pure domain without HTTP entry, scripts, consumers
+│       └── <endpoint>.spec.ts           # EVERYTHING behaviorally — all branches, routes or processors only
 ```
 
-- `behavioral/<feature>/<endpoint>.spec.ts` — one Supertest-based file per endpoint, all branches covered (happy path, validation, auth, conflicts, external failures). This is the default and the bulk of the suite.
-- `unit/` — pure domain logic with NO HTTP entry point, standalone scripts, and queue/cron consumers. Never put an endpoint test here.
+- `behavioral/<feature>/<endpoint>.spec.ts` — one Supertest-based file per entry point (route or processor), all branches covered (happy path, validation, auth, conflicts, external failures). This is the default and THE ONLY kind of test suite.
+- NO `test/unit/` directory: every behavior must be exercised through a real entry point. Logic exercised by neither stays as-is but is simply not directly tested — never delete it, never invent an endpoint for it.
 - `setup.ts` — the only place for shared setup: real AppModule bootstrap, testcontainers infra, auth helpers (register/login via the real API → reusable auth headers).
 
 ## 🎯 Workflow
 1. **Ask for context** — which route/endpoint (feature) needs testing?
 2. **Read the source code** — the controller AND the whole chain it triggers (use case, ports, adapters, entities).
 3. **Classify dependencies** — internal → real impl (already wired in the AppModule); external → `overrideProvider` with factories from `test/fixtures/external.ts`.
-4. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test via Supertest on the real AppModule, in `test/behavioral/<feature>/<endpoint>.spec.ts`); `references/processor-test.md` when the logic is triggered by a queue/processor/scheduler (real message/job → side effects); `references/testcontainers.md` for real infrastructure; `references/setup.md` (jest config, fixtures, auth helpers); `references/use-case-test.md` + `references/repository-test.md` ONLY for logic with NO route and NO processor (cron-internal, pure domain) or adapter-specific SQL — those tests live in `test/unit/`.
+4. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test via Supertest on the real AppModule, in `test/behavioral/<feature>/<endpoint>.spec.ts`); `references/processor-test.md` when the logic is triggered by a queue/processor/scheduler (real message/job → side effects); `references/testcontainers.md` for real infrastructure; `references/setup.md` (jest config, fixtures, auth helpers). Never delete logic with no route/processor and never invent an artificial entry point just to test it.
 5. **Write tests** — AAA pattern, explicit names, one logical behavior per test. Act = one Supertest request; Assert = status + body + persistence via the real repository.
 6. **Run** — `npm run test` (see `references/commands.md`).
 
@@ -68,10 +67,10 @@ If the feature under test has domain invariants or business rules, add at least 
 
 ## What you never do
 - Test a use case in isolation when it is exposed via an HTTP route — test it from the router instead
-- Test a use case, service, or infrastructure adapter DIRECTLY (instantiated in the test) when a route OR a processor/scheduler triggers it — go through the entry point (route = Supertest request; processor = real published message/job)
+- Test a use case, service, or infrastructure adapter DIRECTLY (instantiated in the test), ever — go through the entry point (route = Supertest request; processor = real published message/job)
+- Write a direct unit test for pure domain logic, scripts, or helpers that nothing exercises — leave it untested rather than bypassing the golden rule; never delete the logic and never invent an artificial endpoint
 - Mock internal components to force a use case/adapter into a testable state (e.g. override an internal `HttpService` wrapper used by an external adapter) instead of mocking the external API at the adapter boundary
-- Place an endpoint test anywhere outside `test/behavioral/<feature>/<endpoint>.spec.ts`
-- Put a test with an HTTP entry point in `test/unit/` — unit is for pure domain, scripts, and consumers only
+- Place a test anywhere outside `test/behavioral/<feature>/` — behavioral is the ONLY location
 - Rebuild a TestingModule that re-declares controllers/use cases/repositories of the real chain — import the real AppModule and `overrideProvider` ONLY external adapters
 - Use `@nestjs/testing`'s `overrideProvider` on internal classes (use cases, services, repositories)
 - Provide an `InMemoryXxxRepository` or any other fake for an internal implementation
@@ -88,6 +87,4 @@ If the feature under test has domain invariants or business rules, add at least 
 - `references/processor-test.md` — behavioral test through a queue processor/consumer: real message or job published to the real broker, observable side effects only (SECONDARY template)
 - `references/setup.md` — jest config, test structure (`test/behavioral/<feature>/`), external fixtures, auth helpers
 - `references/testcontainers.md` — real infrastructure for tests (Postgres, Redis, Kafka, RabbitMQ, LocalStack)
-- `references/use-case-test.md` — EXCEPTION: use case tested directly, only for logic with no route and no processor (lives in `test/unit/`)
-- `references/repository-test.md` — EXCEPTION: adapter-specific behavior not observable through routes (raw SQL, JSONB queries; lives in `test/unit/`)
 - `references/commands.md` — jest commands (run, watch, coverage, behavioral)

@@ -10,12 +10,12 @@ For React apps, testcontainers is mainly relevant when testing **adapter layers*
 ## When NOT to use testcontainers
 - **Component tests** — use MSW (Mock Service Worker) to mock the network boundary; this is the React equivalent of "mock the external adapter"
 - **Hook tests** — real Zustand/React Query + MSW for the fetch
-- **Fast feedback loop** — testcontainers add ~5-15s startup per container; keep the unit suite separate
+- **Fast feedback loop** — testcontainers add ~5-15s startup per container; jsdom component tests stay in the default project and behavioral e2e in its own
 
 ## Install
 ```bash
 pnpm add -D @testcontainers/nodejs @testcontainers/redis
-# run integration tests in the node environment, not jsdom
+# run behavioral e2e tests in the node environment, not jsdom
 ```
 
 ## Vitest config — separate environments
@@ -28,22 +28,22 @@ export default defineConfig({
   test: {
     projects: [
       {
-        // component tests in jsdom
+        // component tests in jsdom (no Docker)
         extends: './tsconfig.json',
         test: {
           environment: 'jsdom',
-          name: 'unit',
-          include: ['src/**/*.test.{ts,tsx}'],
+          name: 'component',
+          include: ['tests/behavioral/**/*.test.{ts,tsx}'],
           setupFiles: './tests/setup.ts',
         },
       },
       {
-        // integration tests in node (needs Docker)
+        // behavioral e2e tests in node (needs Docker)
         extends: './tsconfig.json',
         test: {
           environment: 'node',
-          name: 'integration',
-          include: ['tests/integration/**/*.test.ts'],
+          name: 'e2e',
+          include: ['tests/behavioral/**/*.test.ts'],
         },
       },
     ],
@@ -51,20 +51,20 @@ export default defineConfig({
 })
 ```
 
-Run only unit (no Docker):
+Run only component (no Docker):
 ```bash
-pnpm vitest --project unit
+pnpm vitest --project component
 ```
 
-## Redis container (real WebSocket gateway integration)
+## Redis container (real WebSocket gateway, behavioral e2e)
 
 ```typescript
-// tests/integration/ws-gateway.test.ts
+// tests/behavioral/ws-gateway.test.ts
 import { RedisContainer } from '@testcontainers/redis'
 import { io } from 'socket.io-client'
 import { RedisGateway } from '@/infrastructure/realtime/redis-gateway'
 
-describe('RedisGateway (integration)', () => {
+describe('RedisGateway via real Redis — behavioral', () => {
   let container: Awaited<ReturnType<RedisContainer['start']>>
   let gateway: RedisGateway
 

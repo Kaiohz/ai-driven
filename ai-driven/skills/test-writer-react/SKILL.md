@@ -1,6 +1,6 @@
 ---
 name: test-writer-react
-description: "Write unit and integration tests for React/TypeScript apps with Vitest, React Testing Library, MSW. Golden rule: real implementations for internal components (stores, hooks, providers), mocks only for outbound external adapters (APIs, SDKs), testcontainers for real-backend E2E. Trigger on: vitest, RTL, \"write tests\", \"add tests\", \"test the component/hook/service\", or any testing task in a React/TypeScript app. Use when testing any React app."
+description: "Write component (behavioral) and e2e tests for React/TypeScript apps with Vitest, React Testing Library, MSW. Golden rule: ALL tests go through a REAL behavioral entry point — render the real component (RTL); test hooks via their consuming component. NEVER a direct unit test for unconsumed logic: leave it untested, never delete it, never invent an artificial consumer. Real implementations for internal components (stores, hooks, providers), mocks only for outbound external adapters (APIs, SDKs) at the MSW network boundary, testcontainers for real-backend e2e. Trigger on: vitest, RTL, \"write tests\", \"add tests\", \"test the component/hook/service\", or any testing task in a React/TypeScript app. Use when testing any React app."
 ---
 
 # Test Writer — React
@@ -18,10 +18,10 @@ Write clear, maintainable tests for a React/TypeScript app with Vitest, React Te
 - The task is Python or NestJS testing → use `test-writer-python` / `test-writer-nestjs`
 
 ## 🎯 Golden Rule (non-negotiable)
-- **Test at the HIGHEST entry point available, in this strict order**:
+- **ALL tests go through a REAL behavioral entry point, in this strict order**:
   1. **Component/page owns the behavior → render the real component** (RTL) with its real providers — assert what the USER observes (roles, text, callbacks), not internals.
-  2. **Logic lives in a hook/store reachable from a component → prefer testing through the component that uses it**; test the hook directly (`renderHook`) ONLY when no component consumes it yet or the hook is generic/shared infrastructure.
-  3. **Pure TypeScript utilities with no UI/hook consumer → direct unit tests allowed** — but when a utility is exercised by a tested component/hook chain, prefer asserting its effect through that chain.
+  2. **Logic lives in a hook/store reachable from a component → test through the component that uses it.** `renderHook` is allowed ONLY when the hook is generic/shared infrastructure not yet consumed by any component.
+  3. **Pure TypeScript utilities with no UI/hook consumer? Never delete the logic and never invent an artificial consumer just to test it.** Keep the logic as-is but do NOT write a direct unit test for it: coverage of such utilities comes from the components/hooks that (directly or transitively) use them. If today nothing uses them, simply leave them untested rather than bypassing the golden rule.
 - **Real implementations** for ALL internal components (hooks, context providers, stores, services, domain utilities)
 - **Mocks** ONLY for outbound adapters toward external systems (REST APIs, third-party SDKs, analytics, storage) — at the network boundary (MSW) or via `vi.mock` on the adapter module
 - **A hook/service/adapter is NEVER the direct test subject when a component consumes it** — the component IS the entry point
