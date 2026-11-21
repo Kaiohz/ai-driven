@@ -57,9 +57,9 @@ Does the change respect the layer boundaries, dependency direction, and existing
 
 | Score | Anchor |
 |---|---|
-| 10 | Respects domain/application/infrastructure split; depends on ports not adapters; follows repo conventions exactly |
+| 10 | Respects domain/application/infrastructure split; depends on ports not adapters; thin orchestrating use cases/hooks (one per file, business rules in domain services); reuses existing capabilities instead of re-implementing them; follows repo conventions exactly |
 | 8 | Right layer; one small convention violation (e.g. a domain file importing infrastructure) |
-| 5 | Cross-layer leak (application reaching infrastructure directly, or infrastructure importing application) OR diverges from repo patterns without reason |
+| 5 | Cross-layer leak (application reaching infrastructure directly, or infrastructure importing application) OR diverges from repo patterns without reason OR 2+ use-case classes in one file OR business rules in use-case/hook private helpers instead of domain services OR an existing capability re-implemented instead of reused |
 | 0 | Architecture broken (domain depends on framework, god class, dependency cycle) |
 
 ## How to decide the overall score

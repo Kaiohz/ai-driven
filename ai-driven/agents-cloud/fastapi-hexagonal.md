@@ -55,7 +55,7 @@ You are a Python/FastAPI expert. Create a backend following hexagonal architectu
 │   │   ├── ports/            # Interfaces (ABC)
 |   │   |  ├── inbound/            # Interfaces for application use cases entry points(ABC)
 |   │   |  ├── outbound/            # Interfaces for infrastructure implementation (ABC)
-│   │   └── services/         # Business services (optional, required if use case logic start to be heavy)
+│   │   └── services/         # Business rules extracted from use cases (REQUIRED for validation/access/resolution logic — use cases stay thin)
 │   │   └── errors/           # Redefined and centralised all errors types and messages
 │   │   └── logging/          # Centralised all log messages
 │   ├── application/
@@ -98,6 +98,34 @@ You are a Python/FastAPI expert. Create a backend following hexagonal architectu
 - Type hints **mandatory** everywhere (use `from typing import ...`)
 - Async/await for all I/O operations (database, HTTP calls, file operations)
 - **One Entity, One File, One Object** do not use a file for several entities
+- **One Use Case, One File** — a `use_cases/` file contains exactly ONE use case class (its result NamedTuple/dataclass may share the file); NEVER append a second `*UseCase` class — create a sibling file
+
+### Use Case Discipline (STRICT — blocking)
+- **Thin use cases** — orchestration only (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/` (pure domain classes, may take outbound ports as constructor deps), NEVER in use-case private methods. ≥3 business private helpers OR >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
+- **Reuse-first for logic** — before implementing any guard/query/loader/resolver, grep `use_cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
+- Full rules + GOOD/BAD examples: `hexagonal-python-patterns/references/use-cases.md` (loaded as a skill).
+
+```python
+# ❌ BAD — the three violations in ONE file (application/use_cases/send_studio_agent_message.py)
+class SendStudioAgentMessageUseCase:
+    async def _refuse_profile_outside_org(self, ...): ...    # rule in a private method
+    async def _accessible_project(self, ...): ...           # rule in a private method
+    async def _refuse_foreign_thread_owner(self, ...): ...  # ≥3 guards → domain/services/
+
+class GetStudioAgentThreadMessagesUseCase:                  # second use case in the SAME file
+    async def execute(self, ...): ...                       # re-implements an existing listing
+
+# ✅ GOOD — thin use case + domain service + sibling files + reuse
+class SendStudioAgentMessageUseCase:
+    def __init__(self, *, agent_port, repo,
+                 access_policy: StudioAgentTurnAccessPolicy): ...   # the RULES injected
+
+    async def execute(self, ...):   # access_policy.resolve_turn(...) → persist → stream → persist
+
+# domain/services/studio_agent_turn_access.py — the extracted rules, reusable by BOTH use cases
+class StudioAgentTurnAccessPolicy: ...
+# application/use_cases/get_studio_agent_thread_messages.py — sibling file, reuses the service
+```
 - **Pydantic BaseModel** for domain entities (simple, immutable when possible with `frozen=True`)
 - **ABC (Abstract Base Classes)** for ports/interfaces
 - Google-style docstrings for all public methods/classes
@@ -185,7 +213,9 @@ db_user = UserModel.from_entity(user_entity)
 - [ ] 3 distinct layers: domain / application / infrastructure
 - [ ] Domain without any external dependencies
 - [ ] Use cases depend on ports (interfaces), not adapters
-- [ ] Use cases should not contain a lot of logic and should orchestrates the logic in services
+- [ ] Use cases orchestrate ONLY — business rules live in `domain/services/`, never in use-case private methods
+- [ ] ONE use case class per file (a second use case gets a sibling file)
+- [ ] No re-implemented existing capability (existing use case/service/port injected and reused)
 - [ ] Infrastructure: one folder per adapter with `adapter.py` + `models.py`
 
 ### SOLID & KISS
@@ -220,6 +250,9 @@ db_user = UserModel.from_entity(user_entity)
 - ❌ Use object for return types no Dict
 - ❌ Do not use infrastructure from application directly use domain
 - ❌ Do not use applciation from infrastructure directly use domain
+- ❌ Two use case classes in one file (one use case = one file, sibling files otherwise)
+- ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
+- ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
 
 
 
@@ -228,6 +261,7 @@ db_user = UserModel.from_entity(user_entity)
 1. **Domain** = pure Python, zero external imports
 2. **Use cases** depend on **ports** (abstractions), never on **adapters**
 3. Transformations: `Class(**other.__dict__)` or `Class(**model.model_dump())`
+4. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/`; reuse existing capabilities before implementing new ones
 5. SOLID + KISS above all: simplicity and design principles
 
 ## Return protocol (mandatory)

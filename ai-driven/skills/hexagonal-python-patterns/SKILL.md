@@ -20,7 +20,7 @@ You are a Python/FastAPI expert. Create a backend following hexagonal architectu
 │   │   ├── ports/            # Interfaces (ABC)
 |   │   |  ├── inbound/            # Interfaces for application use cases entry points(ABC)
 |   │   |  ├── outbound/            # Interfaces for infrastructure implementation (ABC)
-│   │   └── services/         # Business services (optional, required if use case logic start to be heavy)
+│   │   └── services/         # Business rules extracted from use cases (REQUIRED for validation/access/resolution logic — use cases stay thin)
 │   │   └── errors/           # Redefined and centralised all errors types and messages
 │   │   └── logging/          # Centralised all log messages
 │   ├── application/
@@ -48,6 +48,10 @@ For per-layer file templates, load the relevant reference file below.
 - **Centralized errors**: all error codes, messages, and custom exceptions in `domain/errors/`.
 - **Centralized logging (STRICT)**: every `logger.*()` call MUST use a `LogMessage` StrEnum member from `src/domain/logging/` with lazy `%s` arguments. Inline strings, f-strings, and `logger.error(str(e))` in log calls are FORBIDDEN — see `references/logging.md` checklist. No logging inside `domain/entities/` or `domain/ports/`.
 - **KISS**: no `__init__.py` unless re-export is genuinely needed; prefer flat, explicit imports.
+- **Use case discipline (STRICT — blocking)**: see `references/use-cases.md` before writing any use case:
+  - **ONE use case class per file** — `GetFooUseCase` lives in `get_foo_use_case.py`; NEVER append a second `*UseCase` class to an existing use case's file (its result NamedTuple/dataclass may share the file).
+  - **Thin use cases** — a use case orchestrates (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/`, NEVER in use-case private methods. ≥3 business private helpers or >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
+  - **Reuse-first for logic** — before implementing any guard/query/loader, grep `use_cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
 
 ## 🛡️ Edge cases (mandatory handling)
 Every use case, adapter, and route MUST handle edge cases defensively, not just the happy path. During implementation, cover:
@@ -67,7 +71,7 @@ If the feature has domain invariants, enforce them in the entity constructor / v
 2. **Scaffold structure** → `references/project-structure.md` — create the directory tree.
 3. **Bootstrap app** → `references/main-config-dependencies.md` — `main.py`, `config.py`, `dependencies.py`.
 4. **Wire routes/DTOs** → `references/routes-requests-responses.md` — `routes/`, `requests/`, `responses/`.
-5. **Implement use cases** → `references/use-cases.md` — application logic + inbound ports.
+5. **Implement use cases** → `references/use-cases.md` — THIN application logic (one use case per file, business rules in `domain/services/`, reuse existing capabilities) + inbound ports.
 6. **Define entities** → `references/entities.md` — `domain/entities/` Pydantic models.
 7. **Centralize errors** → `references/errors.md` — error codes, messages, custom exceptions.
 8. **Centralize logging** → `references/logging.md` — log message enums; run the 7-point call checklist on EVERY log call you write. A log call not referencing a `domain/logging/` enum member is a defect, not a style choice.

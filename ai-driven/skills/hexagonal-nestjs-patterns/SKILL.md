@@ -50,6 +50,10 @@ If the feature has domain invariants, enforce them in the Zod entity schema and 
 - **SOLID**: SRP (1 class = 1 responsibility), OCP (extend via new adapters), LSP, ISP (no 20-method ports), DIP (use cases depend on ports, never adapters)
 - **KISS**: direct transformations `new Class({ ...other })` or spread; **no** `fromEntity()` / `toEntity()` methods; **no** Response DTOs (return domain entities directly)
 - **Centralized logging (STRICT)**: every log call MUST use a message constant from `src/domain/logging/` with lazy `%s`/`%d` args. Template literals and inline strings in log calls are FORBIDDEN. No logging inside `domain/` (entities, ports, pure services) — see `references/logging.md`.
+- **Use case discipline (STRICT — blocking)**: see `references/layer-rules.md` (Application layer) before writing any use case:
+  - **ONE use case class per file** — `CreateUserUseCase` lives alone in `create-user.use-case.ts`; NEVER append a second `*UseCase` class to an existing use case's file (its result type may share the file).
+  - **Thin use cases** — a use case orchestrates (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/` (plain TS classes, injected via tokens), NEVER in use-case private methods. ≥3 business private helpers or >~150 lines → extract a domain service.
+  - **Reuse-first for logic** — before implementing any guard/query/loader, grep `application/use-cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
 
 ## 📦 Default stack
 - Package manager: **pnpm**

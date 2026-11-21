@@ -16,6 +16,9 @@ Load this before review to catch violations.
 - ❌ Calling `.parse()` twice on the same payload (entities already validate in their factory)
 - ❌ Inferring DTO types from entity schemas when the DTO is a subset (define a separate schema)
 - ❌ Using `.refine()` for synchronous DB checks (do those in the use case)
+- ❌ Two use case classes in one file (one use case = one file; a second use case gets a sibling file)
+- ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
+- ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
 - ❌ Inline strings or template literals in log calls — every log call MUST use a `domain/logging/` message constant with lazy `%s`/`%d` args (see `logging.md`)
 - ❌ Logging inside `domain/` (entities, ports, pure domain services)
 
@@ -27,3 +30,4 @@ Load this before review to catch violations.
 5. Transformations: `new Class({ ...other })` or spread
 6. Tests: test doubles for internal, mocks for external
 7. SOLID + KISS above all: simplicity and design principles first
+8. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/`; reuse existing capabilities before implementing new ones

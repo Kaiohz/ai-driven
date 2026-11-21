@@ -6,7 +6,7 @@ Detailed rules per layer. Load before writing code in a given layer.
 - **Pure TypeScript + Zod only** — no NestJS decorators, no TypeORM, no Mongoose
 - **Entities**: classes with Zod schemas for validation in constructors
 - **Ports**: abstract classes (interfaces don't exist at runtime in TS). Split into `inbound/` (use case entry points) and `outbound/` (infrastructure contracts)
-- **Services** (optional): pure domain logic when use cases get heavy
+- **Services**: business rules extracted from use cases (validation guards, access policy, ownership/resolution logic) — plain TypeScript classes (NO `@Injectable()`), may take outbound ports as constructor deps; use cases stay thin orchestrators (see Application layer rules)
 - **Errors**: centralised custom exception hierarchy (inherit from base domain exception)
 - **Logging**: centralized log message constants — every log call uses a `domain/logging/` message constant with lazy `%s`/`%d` args; template literals and inline strings in log calls are FORBIDDEN; no logging in `domain/`. See `logging.md` for the mandatory checklist.
 
@@ -100,6 +100,70 @@ export class UserController {
   }
 }
 ```
+
+### Use case discipline (STRICT — blocking rules)
+1. **ONE use case class per file.** `CreateUserUseCase` lives alone in its file; a second use case (`GetUserUseCase`) gets its own sibling file — NEVER the same file. The single result type of that use case may share the file.
+2. **Thin use cases.** The use case orchestrates (load → domain service/entity → outbound ports → return). Business rules (validation guards, access policy, ownership checks, resolution decisions) belong in `domain/services/` classes injected into the use case — NOT in private methods. Heuristic: ≥3 business private helpers OR >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
+3. **Reuse-first for logic.** Before implementing any guard/query/loader, grep `application/use-cases/`, `domain/services/`, and `domain/ports/` for an existing capability — inject and reuse it. Re-implementing logic the app already has is a defect, not a style choice.
+
+```typescript
+// GOOD — thin use case, rules in a domain service
+// application/use-cases/send-agent-message.use-case.ts — orchestration ONLY
+@Injectable()
+export class SendAgentMessageUseCase {
+  constructor(
+    @Inject(AGENT_PORT) private readonly agent: AgentPort,
+    @Inject(STUDIO_TURN_ACCESS) private readonly access: StudioTurnAccessService, // domain service
+  ) {}
+
+  async *execute(input: TurnInput): AsyncGenerator<AgentStreamEvent> {
+    const turn = await this.access.resolveTurn(input); // rules delegated
+    if (turn.error !== null) {
+      yield AgentStreamEvent.error(turn.error);
+      return;
+    }
+    // Orchestration only: persist → stream → persist.
+  }
+}
+
+// domain/services/studio-turn-access.service.ts — PURE TypeScript, no @Injectable()
+export class StudioTurnAccessService {
+  constructor(
+    private readonly profiles: ProfileRepository,
+    private readonly projects: ProjectRepository,
+    private readonly threads: AgentThreadRepository,
+  ) {}
+
+  async resolveTurn(input: TurnInput): Promise<TurnValidation> {
+    // Every guard lives HERE, in the domain — reusable and testable.
+  }
+}
+
+// Wired in the application module with an injection token
+{
+  provide: STUDIO_TURN_ACCESS,
+  useFactory: (profiles, projects, threads) => new StudioTurnAccessService(profiles, projects, threads),
+  inject: [PROFILE_REPOSITORY, PROJECT_REPOSITORY, AGENT_THREAD_REPOSITORY],
+}
+```
+
+```typescript
+// BAD — the three violations in one file
+// application/use-cases/send-agent-message.use-case.ts — ❌ DON'T
+export class SendAgentMessageUseCase {
+  private async refuseProfileOutsideOrg(...): Promise<Turn | null> { ... } // ❌ R2: rule in a private method
+  private async accessibleProject(...): Promise<...> { ... }              // ❌ R2
+  private async refuseForeignThreadOwner(...): Promise<...> { ... }       // ❌ R2 (≥3 guards → domain service)
+}
+
+export class GetAgentThreadMessagesUseCase {                              // ❌ R1: second use case in the SAME file
+  async execute(threadId: string) {
+    // ❌ R3: re-implements the org-guarded message listing the app already provides
+  }
+}
+```
+
+Every ❌ above is a blocking review finding: extract the rules to `domain/services/`, move the second class to its own file, and inject the existing capability.
 
 ### KISS data transformations
 - Direct object spreading: `new Entity({ ...data })`

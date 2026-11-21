@@ -49,7 +49,8 @@ You are a TypeScript/NestJS expert. Create a backend following hexagonal archite
 3. **Ports** = abstract classes (interfaces don't exist at runtime); split into `inbound/` (use case entry) and `outbound/` (infra contracts)
 4. Transformations: `new Class({ ...other })` or spread — no `fromEntity()` / `toEntity()` methods; no Response DTOs unless serialization is genuinely needed
 5. Tests: behavioral from the router — real chain wired, testcontainers (Docker is a hard requirement, fail fast), mocks only for external — invoke the `test-writer` agent
-6. SOLID + KISS above all: simplicity and design principles first
+6. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/` (plain TS classes injected via tokens); reuse existing capabilities before implementing new ones
+7. SOLID + KISS above all: simplicity and design principles first
 
 ## 📦 Default stack
 
@@ -69,6 +70,46 @@ You are a TypeScript/NestJS expert. Create a backend following hexagonal archite
 - ❌ Complex transformation methods (`fromEntity`, `toEntity`)
 - ❌ `index.ts` files for re-exporting dependencies across layers
 - ❌ Direct adapter injection in use cases (always inject via port tokens)
+- ❌ Two use case classes in one file (one use case = one file; a second use case gets a sibling file)
+- ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
+- ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
+
+## ⚖️ Use Case Discipline (STRICT — blocking)
+
+- **ONE use case class per file** — a use-case file contains exactly one use case class (its result type may share the file); NEVER append a second `*UseCase` class — create a sibling file.
+- **Thin use cases** — orchestration only (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/` (plain TypeScript classes, NO `@Injectable()`, injected via tokens), NEVER in use-case private methods. ≥3 business private helpers OR >~150 lines → extract a domain service.
+- **Reuse-first for logic** — before implementing any guard/query/loader/resolver, grep `application/use-cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
+- Full rules + GOOD/BAD examples: `hexagonal-nestjs-patterns/references/layer-rules.md` (Application layer — loaded as a skill).
+
+```typescript
+// ❌ BAD — the three violations in ONE file (application/use-cases/send-agent-message.use-case.ts)
+export class SendAgentMessageUseCase {
+  private async refuseProfileOutsideOrg(...): Promise<Turn | null> { ... }  // rule in a private method
+  private async accessibleProject(...): Promise<...> { ... }                // rule in a private method
+  private async refuseForeignThreadOwner(...): Promise<...> { ... }        // ≥3 guards → domain/services/
+}
+
+export class GetAgentThreadMessagesUseCase {                                // second use case in the SAME file
+  async execute(threadId: string) { /* re-implements an existing listing */ }
+}
+
+// ✅ GOOD — thin use case + domain service + sibling files + reuse
+@Injectable()
+export class SendAgentMessageUseCase {
+  constructor(
+    @Inject(AGENT_PORT) private readonly agent: AgentPort,
+    @Inject(STUDIO_TURN_ACCESS) private readonly access: StudioTurnAccessService, // the RULES injected
+  ) {}
+
+  async *execute(input: TurnInput): AsyncGenerator<AgentStreamEvent> {
+    const turn = await this.access.resolveTurn(input); // rules delegated to domain
+    if (turn.error !== null) return this.rejectTurn(turn.error); // orchestration only after
+  }
+}
+
+// domain/services/studio-turn-access.service.ts — PURE TypeScript (no @Injectable()), the extracted rules
+// application/use-cases/get-agent-thread-messages.use-case.ts — sibling file, reuses the same service
+```
 
 ## Return protocol (mandatory)
 

@@ -38,6 +38,9 @@ Run end-to-end before declaring a task done. Each item must be checked.
 ## NestJS
 - [ ] Constructor injection everywhere
 - [ ] Thin controllers delegate to use cases
+- [ ] ONE use case class per file (a second use case gets a sibling file)
+- [ ] Use cases are thin orchestrators — business rules live in `domain/services/` (plain TS classes injected via tokens)
+- [ ] No re-implemented existing capability (existing use case/service/port reused via injection)
 - [ ] Exception filters map domain errors to HTTP
 - [ ] Guards for auth (`@UseGuards()`)
 - [ ] Modules: one per bounded context / adapter

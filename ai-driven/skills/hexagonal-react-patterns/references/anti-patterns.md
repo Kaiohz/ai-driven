@@ -20,6 +20,9 @@ Load this before review to catch violations.
 - ❌ Hardcoded colours (`#hex`, `rgb()`, default Tailwind palette classes like `bg-blue-600`) — always go through the repo's design tokens
 - ❌ `index.ts` files for re-exporting dependencies across layers
 - ❌ Local `Record<Variant, string>` maps inside a component when a `*-variants.ts` file exists for that primitive
+- ❌ Multiple custom hooks exported from one file (one hook = one file — hooks are the use-case equivalent)
+- ❌ Business rules inline in hooks or components (extract pure domain functions / Zod schemas in `domain/`)
+- ❌ Re-implementing an existing domain function, hook, or guard (grep first, reuse/inject the real one)
 
 ## Critical Reminders
 1. **Domain** = pure TypeScript, zero React dependencies
@@ -30,3 +33,4 @@ Load this before review to catch violations.
 6. **Mobile-first responsive design** with Tailwind breakpoints
 7. **Touch targets** minimum 44x44px on mobile
 8. SOLID + KISS: simplicity and design principles above all
+9. ONE hook per file; hooks are thin orchestrators — business rules in pure domain functions/Zod; reuse-first for logic as well as UI

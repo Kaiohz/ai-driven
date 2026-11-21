@@ -38,6 +38,57 @@ export interface UserRepository {
   - `useUser()` to fetch/manage user
   - `useAuth()` for authentication logic
   - `useForm()` for form state management
+- **Hook discipline (STRICT)**:
+  - **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` only; a second hook gets its own sibling file (hooks are the React use-case equivalent).
+  - **Thin hooks** — orchestration only (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions/Zod schemas (`domain/`), NOT inline in hooks. ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
+  - **Reuse-first for logic** — grep `domain/` + `application/hooks/` before implementing any guard/mapper/resolver; inject the existing capability.
+
+```typescript
+// GOOD — thin hook, rules in a pure domain function
+// domain/services/turnAccess.ts — PURE TypeScript, zero React imports
+import { z } from "zod";
+
+export const TurnInputSchema = z.object({
+  threadId: z.string(),
+  orgId: z.string().nullable(),
+});
+export type TurnInput = z.infer<typeof TurnInputSchema>;
+
+export function validateTurnAccess(input: TurnInput, owner: { orgId: string } | null) {
+  // The RULES live here — reusable, testable without React
+  if (!owner || owner.orgId !== input.orgId) return { error: "THREAD_NOT_ACCESSIBLE" };
+  return { error: null };
+}
+
+// application/hooks/useSendAgentMessage.ts — orchestration ONLY, ONE hook per file
+import { useMutation } from "@tanstack/react-query";
+import { validateTurnAccess, type TurnInput } from "@/domain/services/turnAccess";
+
+export function useSendAgentMessage(repo: AgentRepository) {
+  return useMutation({
+    mutationFn: async (input: TurnInput) => {
+      const owner = await repo.getThreadOwner(input.threadId);   // port call
+      const validation = validateTurnAccess(input, owner);       // rule delegated to domain
+      if (validation.error) throw new Error(validation.error);
+      return repo.sendMessage(input);                            // port call — orchestration
+    },
+  });
+}
+```
+
+```typescript
+// BAD — the three violations in one file
+// application/hooks/useAgentThread.ts — ❌ DON'T
+export function useAgentThread(...) { ... }          // this hook is fine, but…
+export function useThreadMessages(...) { ... }        // ❌ R1: second hook in the SAME file
+export function useSendAgentMessage(...) {
+  const isOwnerValid = (owner) => owner.orgId === input.orgId; // ❌ R2: business rule inline in the hook
+  // ❌ R3: re-implements the org-guarded message listing the app already provides
+}
+```
+
+Every ❌ above is a blocking review finding: move the second hook to its own file, extract the rule to a pure domain function, and reuse the existing hook/domain capability.
+
 - **Components**:
   - Small, focused components (<200 lines)
   - Single responsibility

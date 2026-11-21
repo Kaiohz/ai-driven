@@ -6,6 +6,9 @@ Run end-to-end before declaring a task done. Each item must be checked.
 - [ ] 3 distinct layers: domain / application / infrastructure
 - [ ] Domain is pure TypeScript (no React dependencies)
 - [ ] Application layer uses domain through custom hooks
+- [ ] ONE custom hook per file (no multi-hook files — hooks are the use-case equivalent)
+- [ ] Hooks are thin orchestrators — business rules live in pure domain functions/Zod schemas
+- [ ] No re-implemented existing domain/hook logic (reuse-first)
 - [ ] Infrastructure implements domain ports
 - [ ] No `index.ts` barrel files re-exporting across layers
 

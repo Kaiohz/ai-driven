@@ -1,6 +1,6 @@
 ---
 description: Use it for implementing the task asked by the user
-model: soludevtech/qwen3.6-35b
+model: ollama-cloud/glm-5.3-flash
 
 mode: all
 permissions:
@@ -60,6 +60,44 @@ Before creating a new component, **scout what already exists** and reuse/extend 
 - If an existing primitive *almost* fits, **extend it** (add a prop, a variant) rather than duplicating it with a custom span/div.
 - Styling variants belong in CVA files under `lib/ui/*-variants.ts` — **never** define a local `Record<Variant, string>` map inside a component when a `*-variants.ts` file already exists for that primitive; add the variant there instead.
 - ❌ Do not reimplement an existing UI primitive (e.g. a Badge with raw `<span>`s + a local class map) — use/enrich the real one.
+- **Reuse-first applies to LOGIC as well as UI**: before implementing any guard, mapper, resolver, or data-shaping routine, grep `domain/` (entities, ports, pure functions) and `application/hooks/` for an existing one — import/inject it. Re-implementing logic the app already has is a defect, not a style choice.
+
+## 🪝 Hook Discipline (STRICT — blocking)
+
+Custom hooks are the React equivalent of use cases — the same discipline applies:
+- **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` (plus its result/options types if needed); NEVER add a second `use*` hook to an existing hook's file — create a sibling file.
+- **Thin hooks** — a hook orchestrates (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions and Zod schemas (`domain/`), NEVER inline in hooks or components. A hook with ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
+- **Reuse-first** — grep existing hooks and domain functions before writing new ones.
+- Full rules: `hexagonal-react-patterns` skill (`SKILL.md` § Hook discipline + `references/layer-rules.md` — loaded as skills).
+
+```typescript
+// ❌ BAD — the three violations in ONE file (application/hooks/useAgentThread.ts)
+export function useAgentThread(...) { ... }        // this hook alone is fine, but…
+export function useThreadMessages(...) { ... }     // ❌ second hook in the SAME file
+export function useSendAgentMessage(...) {
+  const isOwnerValid = (owner) => owner.orgId === input.orgId; // ❌ business rule inline in the hook
+  // ❌ re-implements the org-guarded message listing the app already provides
+}
+
+// ✅ GOOD — thin hook + pure domain function + sibling files + reuse
+// domain/services/turnAccess.ts — PURE TypeScript, zero React imports
+export function validateTurnAccess(input: TurnInput, owner: { orgId: string } | null) {
+  if (!owner || owner.orgId !== input.orgId) return { error: "THREAD_NOT_ACCESSIBLE" };
+  return { error: null };
+}
+
+// application/hooks/useSendAgentMessage.ts — orchestration ONLY, ONE hook per file
+export function useSendAgentMessage(repo: AgentRepository) {
+  return useMutation({
+    mutationFn: async (input: TurnInput) => {
+      const owner = await repo.getThreadOwner(input.threadId);  // port call
+      const validation = validateTurnAccess(input, owner);      // rule delegated to domain
+      if (validation.error) throw new Error(validation.error);
+      return repo.sendMessage(input);
+    },
+  });
+}
+```
 
 ## 📌 Critical Reminders
 
@@ -70,7 +108,8 @@ Before creating a new component, **scout what already exists** and reuse/extend 
 5. **Test behavior, not implementation** with React Testing Library — invoke the `test-writer` agent (real implementations for internals, mocks only for external)
 6. **Mobile-first responsive design** with Tailwind breakpoints
 7. **Touch targets** minimum 44x44px on mobile
-8. SOLID + KISS: simplicity and design principles above all
+8. ONE hook per file; hooks are thin orchestrators — business rules in pure domain functions/Zod schemas; reuse-first for logic as well as UI
+9. SOLID + KISS: simplicity and design principles above all
 
 ## 📦 Default stack (overridable by repo AGENTS.md)
 

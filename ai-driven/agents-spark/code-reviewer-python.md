@@ -1,6 +1,6 @@
 ---
 description: Code review agent for Python/FastAPI. Auto-loads code-reviewer, hexagonal-python-patterns, async-python-patterns, performance-audit, and test-writer-python skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing Python/FastAPI code in the implementation loop.
-model: soludevtech/ornith-1.5-35b
+model: ollama-cloud/minimax-m3.1-flash
 
 mode: all
 permissions:
@@ -135,6 +135,17 @@ When scoring each dimension, apply the stack-specific knowledge from your loaded
 - One file per entity, proper folder structure (domain/, application/, infrastructure/)
 - Pydantic BaseModel for entities, ABC for ports
 - No `__init__.py` usage, no Protocol instead of ABC
+- **Use case discipline (blocking check)** — per `hexagonal-python-patterns/references/use-cases.md`: ONE use case class per file; use cases are thin orchestrators with business rules (validation guards, access policy, ownership/resolution logic) in `domain/services/`, NOT private methods. A second use case class in the same file, a fat use case (≥3 business private helpers or >~150 lines), or logic re-implementing an existing use case/service/port capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+
+```python
+# Flag this shape (the three violations in ONE file):
+class SendStudioAgentMessageUseCase:
+    async def _refuse_profile_outside_org(self, ...): ...   # ❌ rule in a private method (→ domain/services/)
+    async def _accessible_project(self, ...): ...           # ❌ ≥3 guards → extract a domain service
+
+class GetStudioAgentThreadMessagesUseCase:                 # ❌ second use case in the SAME file
+    async def execute(self, thread_id: str): ...           # ❌ re-implements an existing listing — grep first
+```
 
 ## Output Format
 

@@ -111,6 +111,17 @@ Follow the `code-reviewer` skill's review process exactly:
 - Zod-in-domain: entity validation via Zod schemas in the domain layer
 - Proper folder structure (domain/, application/hooks/, infrastructure/adapters/)
 - No business logic in components (components are presentation, hooks hold logic)
+- **Hook discipline (blocking check)** — per `hexagonal-react-patterns` (SKILL.md § Hook discipline): ONE custom hook per file; hooks are thin orchestrators with business rules in pure domain functions/Zod schemas (`domain/`), NOT inline in hooks/components. A multi-hook file, a fat hook with inline business rules (≥3 rule helpers or >~150 lines), or logic re-implementing an existing domain function/hook capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+
+```typescript
+// Flag this shape (the three violations in ONE file):
+export function useAgentThread(...) { ... }        // this hook alone is fine, but…
+export function useThreadMessages(...) { ... }     // ❌ second hook in the SAME file
+export function useSendAgentMessage(...) {
+  const isOwnerValid = (owner) => owner.orgId === input.orgId; // ❌ business rule inline (→ pure domain fn)
+  // ❌ re-implements an existing domain/hook capability — grep first
+}
+```
 
 ## Output Format
 

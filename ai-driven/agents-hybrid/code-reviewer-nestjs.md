@@ -1,6 +1,6 @@
 ---
 description: Code review agent for NestJS/TypeScript. Auto-loads code-reviewer, hexagonal-nestjs-patterns, async-nestjs-patterns, performance-audit, and test-writer-nestjs skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing NestJS/TypeScript code in the implementation loop.
-model: ollama-cloud/glm-5.3-flash
+model: ollama-cloud/minimax-m3.1-flash
 
 mode: all
 permissions:
@@ -96,6 +96,7 @@ Follow the `code-reviewer` skill's review process exactly:
 - Complexity (deeply nested logic, long methods, complex RxJS pipelines)
 - Import organization and circular dependency detection
 - Injection token consistency
+- **Logging convention (blocking check)** — every log call MUST reference a message constant from `src/domain/logging/` with lazy `%s`/`%d` args (per `hexagonal-nestjs-patterns/references/logging.md`). A template literal, inline string, or `` logger.error(`failed: ${e.message}`) `` in a log call is a CRITICAL maintainability finding: report it in Critical Issues with the message-constant fix. No logging inside `domain/` (entities, ports, pure services).
 
 ### 5. Testability
 - Verify tests follow the golden rule from `test-writer-nestjs`: behavioral tests from the router (Supertest on the real AppModule), real implementations for internal components, mocks ONLY for outbound external adapters (email, Stripe, S3, third-party APIs)
@@ -118,6 +119,19 @@ Follow the `code-reviewer` skill's review process exactly:
 - Proper folder structure (domain/, application/, infrastructure/)
 - Controllers are thin HTTP layers only — business logic belongs in use cases, not controllers
 - No business logic in routers/controllers (Router -> Use Case -> Repository/Service)
+- **Use case discipline (blocking check)** — per `hexagonal-nestjs-patterns/references/layer-rules.md` (Application layer): ONE use case class per file; use cases are thin orchestrators with business rules (validation guards, access policy, ownership/resolution logic) in `domain/services/`, NOT private methods. A second use case class in the same file, a fat use case (≥3 business private helpers or >~150 lines), or logic re-implementing an existing use case/service/port capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+
+```typescript
+// Flag this shape (the three violations in ONE file):
+export class SendAgentMessageUseCase {
+  private async refuseProfileOutsideOrg(...): Promise<Turn | null> { ... }  // ❌ rule in a private method (→ domain/services/)
+  private async accessibleProject(...): Promise<...> { ... }               // ❌ ≥3 guards → extract a domain service
+}
+
+export class GetAgentThreadMessagesUseCase {   // ❌ second use case in the SAME file
+  async execute(threadId: string) { ... }      // ❌ re-implements an existing listing — grep first
+}
+```
 
 ## Output Format
 

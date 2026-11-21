@@ -27,6 +27,14 @@ Before creating a new component, **scout what already exists** and reuse/extend 
 - If an existing primitive *almost* fits, **extend it** (add a prop, a variant) rather than duplicating it with a custom span/div.
 - Styling variants belong in CVA files under `lib/ui/*-variants.ts` — **never** define a local `Record<Variant, string>` map inside a component when a `*-variants.ts` file already exists; add the variant there instead.
 - ❌ Do not reimplement an existing UI primitive (e.g. a Badge with raw `<span>`s + a local class map) — use/enrich the real one.
+- **Reuse-first applies to LOGIC as well as UI**: before implementing any guard, mapper, resolver, or data-shaping routine, grep `domain/` (entities, ports, pure functions) and `application/hooks/` for an existing one — import/inject it. Re-implementing logic the app already has is a defect, not a style choice.
+
+## 🪝 Hook discipline (STRICT — blocking)
+
+Custom hooks are the React equivalent of use cases — the same discipline applies:
+- **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` (plus its result/options types if needed); NEVER add a second `use*` hook to an existing hook's file — create a sibling file.
+- **Thin hooks** — a hook orchestrates (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions and Zod schemas (`domain/`), NEVER inline in hooks or components. A hook with ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
+- **Reuse-first** — grep existing hooks and domain functions before writing new ones.
 
 ## 🛡️ Edge cases (mandatory handling)
 Every component, hook, and adapter MUST handle edge cases defensively, not just the happy path. During implementation, cover:
