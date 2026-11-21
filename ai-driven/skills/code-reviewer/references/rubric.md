@@ -39,7 +39,7 @@ Can the next developer understand and extend this without rewriting?
 |---|---|
 | 10 | Clear naming, single-responsibility units, no duplication, complexity matches the problem; every log call uses a centralized log-message constant/enum with lazy args |
 | 8 | Readable; one minor duplication or slightly-too-long function |
-| 5 | Magic numbers, duplicated logic across 2+ places, a function doing 3+ things, OR inline strings/template literals/f-strings in log calls (bypassing the centralized log-message convention) |
+| 5 | Magic numbers, duplicated logic across 2+ places, a function doing 3+ things, OR delegation-only wrapper methods (a method that only calls another with nothing added), OR inline strings/template literals/f-strings in log calls (bypassing the centralized log-message convention) |
 | 0 | Unreadable, deeply nested, or copy-pasted with divergent edits — future changes will be risky |
 
 ## Testability

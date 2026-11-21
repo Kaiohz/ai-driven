@@ -19,6 +19,7 @@ Load this before review to catch violations.
 - ❌ Two use case classes in one file (one use case = one file; a second use case gets a sibling file)
 - ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
 - ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
+- ❌ Delegation-only wrapper methods (a method whose body is a single pass-through call to another method — call the target directly; re-scan the class for one-liner wrappers)
 - ❌ Inline strings or template literals in log calls — every log call MUST use a `domain/logging/` message constant with lazy `%s`/`%d` args (see `logging.md`)
 - ❌ Logging inside `domain/` (entities, ports, pure domain services)
 

@@ -103,6 +103,7 @@ You are a Python/FastAPI expert. Create a backend following hexagonal architectu
 ### Use Case Discipline (STRICT — blocking)
 - **Thin use cases** — orchestration only (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/` (pure domain classes, may take outbound ports as constructor deps), NEVER in use-case private methods. ≥3 business private helpers OR >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
 - **Reuse-first for logic** — before implementing any guard/query/loader/resolver, grep `use_cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
+- **No delegation-only wrappers (generalized, everywhere)** — a method whose body ONLY wraps another method (single pass-through call — no guard, no error mapping, no added behavior) is useless indirection: call the target directly; re-scan the class for remaining one-liner wrappers when you touch it.
 - Full rules + GOOD/BAD examples: `hexagonal-python-patterns/references/use-cases.md` (loaded as a skill).
 
 ```python
@@ -125,6 +126,14 @@ class SendStudioAgentMessageUseCase:
 # domain/services/studio_agent_turn_access.py — the extracted rules, reusable by BOTH use cases
 class StudioAgentTurnAccessPolicy: ...
 # application/use_cases/get_studio_agent_thread_messages.py — sibling file, reuses the service
+```
+
+```python
+# ❌ R4 — delegation-only wrapper: useless indirection (EVERYWHERE: use cases, services, adapters)
+    async def _append_user(self, thread_id: str, message: str) -> None:
+        return await self._append(thread_id, self._profile_id, self._project_id,
+                                  StudioAgentRole.user, message)  # ONLY delegates — nothing added
+    # ✅ call self._append(...) directly — and re-scan the class for other one-liner wrappers
 ```
 - **Pydantic BaseModel** for domain entities (simple, immutable when possible with `frozen=True`)
 - **ABC (Abstract Base Classes)** for ports/interfaces
@@ -253,6 +262,7 @@ db_user = UserModel.from_entity(user_entity)
 - ❌ Two use case classes in one file (one use case = one file, sibling files otherwise)
 - ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
 - ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
+- ❌ Delegation-only wrapper methods (a method whose body is a single pass-through call — call the target directly; re-scan one-liner wrappers)
 
 
 
@@ -261,7 +271,7 @@ db_user = UserModel.from_entity(user_entity)
 1. **Domain** = pure Python, zero external imports
 2. **Use cases** depend on **ports** (abstractions), never on **adapters**
 3. Transformations: `Class(**other.__dict__)` or `Class(**model.model_dump())`
-4. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/`; reuse existing capabilities before implementing new ones
+4. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/`; reuse existing capabilities before implementing new ones; NO delegation-only wrapper methods (pass-through one-liners inlined)
 5. SOLID + KISS above all: simplicity and design principles
 
 ## Return protocol (mandatory)

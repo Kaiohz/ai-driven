@@ -9,6 +9,7 @@ Run end-to-end before declaring a task done. Each item must be checked.
 - [ ] ONE custom hook per file (no multi-hook files — hooks are the use-case equivalent)
 - [ ] Hooks are thin orchestrators — business rules live in pure domain functions/Zod schemas
 - [ ] No re-implemented existing domain/hook logic (reuse-first)
+- [ ] No delegation-only wrapper functions (pass-through one-liners inlined; file re-scanned)
 - [ ] Infrastructure implements domain ports
 - [ ] No `index.ts` barrel files re-exporting across layers
 

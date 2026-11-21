@@ -136,6 +136,7 @@ When scoring each dimension, apply the stack-specific knowledge from your loaded
 - Pydantic BaseModel for entities, ABC for ports
 - No `__init__.py` usage, no Protocol instead of ABC
 - **Use case discipline (blocking check)** — per `hexagonal-python-patterns/references/use-cases.md`: ONE use case class per file; use cases are thin orchestrators with business rules (validation guards, access policy, ownership/resolution logic) in `domain/services/`, NOT private methods. A second use case class in the same file, a fat use case (≥3 business private helpers or >~150 lines), or logic re-implementing an existing use case/service/port capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+- **Wrapper methods (blocking check)** — a method whose body is ONLY a delegation to another method (pass-through one-liner, no guard, no error mapping, no added behavior) is useless indirection, EVERYWHERE (use cases, domain services, adapters). Report each wrapper as a CRITICAL maintainability finding with the inline fix (call the target directly) and re-scan the file for other one-liner wrappers.
 
 ```python
 # Flag this shape (the three violations in ONE file):
@@ -145,6 +146,10 @@ class SendStudioAgentMessageUseCase:
 
 class GetStudioAgentThreadMessagesUseCase:                 # ❌ second use case in the SAME file
     async def execute(self, thread_id: str): ...           # ❌ re-implements an existing listing — grep first
+
+class AnyUseCase:
+    def _append_user(self, thread_id, message):            # ❌ R4: delegation-only wrapper — body only calls self._append(...)
+        return self._append(thread_id, message)
 ```
 
 ## Output Format

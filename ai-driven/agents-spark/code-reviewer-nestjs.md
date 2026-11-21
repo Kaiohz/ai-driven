@@ -120,6 +120,7 @@ Follow the `code-reviewer` skill's review process exactly:
 - Controllers are thin HTTP layers only — business logic belongs in use cases, not controllers
 - No business logic in routers/controllers (Router -> Use Case -> Repository/Service)
 - **Use case discipline (blocking check)** — per `hexagonal-nestjs-patterns/references/layer-rules.md` (Application layer): ONE use case class per file; use cases are thin orchestrators with business rules (validation guards, access policy, ownership/resolution logic) in `domain/services/`, NOT private methods. A second use case class in the same file, a fat use case (≥3 business private helpers or >~150 lines), or logic re-implementing an existing use case/service/port capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+- **Wrapper methods (blocking check)** — a method whose body is ONLY a delegation to another method (pass-through one-liner, no guard, no error mapping, no added behavior) is useless indirection, EVERYWHERE (use cases, domain services, adapters). Report each wrapper as a CRITICAL maintainability finding with the inline fix (call the target directly) and re-scan the file for other one-liner wrappers.
 
 ```typescript
 // Flag this shape (the three violations in ONE file):
@@ -130,6 +131,12 @@ export class SendAgentMessageUseCase {
 
 export class GetAgentThreadMessagesUseCase {   // ❌ second use case in the SAME file
   async execute(threadId: string) { ... }      // ❌ re-implements an existing listing — grep first
+}
+
+export class AnyUseCase {
+  private async persistUser(threadId: string, message: string) {  // ❌ R4: delegation-only wrapper
+    return this.threads.append(threadId, AgentRole.USER, message);
+  }
 }
 ```
 

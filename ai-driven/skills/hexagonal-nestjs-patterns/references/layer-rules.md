@@ -105,6 +105,7 @@ export class UserController {
 1. **ONE use case class per file.** `CreateUserUseCase` lives alone in its file; a second use case (`GetUserUseCase`) gets its own sibling file — NEVER the same file. The single result type of that use case may share the file.
 2. **Thin use cases.** The use case orchestrates (load → domain service/entity → outbound ports → return). Business rules (validation guards, access policy, ownership checks, resolution decisions) belong in `domain/services/` classes injected into the use case — NOT in private methods. Heuristic: ≥3 business private helpers OR >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
 3. **Reuse-first for logic.** Before implementing any guard/query/loader, grep `application/use-cases/`, `domain/services/`, and `domain/ports/` for an existing capability — inject and reuse it. Re-implementing logic the app already has is a defect, not a style choice.
+4. **No delegation-only wrappers (generalized).** A method whose body ONLY wraps another method (single pass-through call — no guard, no error mapping, no logging, no added behavior) is useless indirection: call the target directly. Applies everywhere — use cases, domain services, adapters, controllers. When you touch a class, RE-SCAN it for remaining one-liner delegation wrappers and remove them. A wrapper is justified ONLY when it adds behavior.
 
 ```typescript
 // GOOD — thin use case, rules in a domain service
@@ -164,6 +165,28 @@ export class GetAgentThreadMessagesUseCase {                              // ❌
 ```
 
 Every ❌ above is a blocking review finding: extract the rules to `domain/services/`, move the second class to its own file, and inject the existing capability.
+
+### Wrapper methods (R4 — useless delegation, everywhere)
+
+```typescript
+// ❌ BAD — wrapper over wrapper (a private method whose body is ONLY a delegation)
+export class SendAgentMessageUseCase {
+  private async persistUser(threadId: string, message: string): Promise<void> {
+    return this.threads.append(threadId, AgentRole.USER, message); // ONLY delegates — nothing added
+  }
+
+  async *execute(input: TurnInput) {
+    await this.persistUser(input.threadId, input.message); // ❌ through the wrapper
+  }
+}
+```
+
+```typescript
+// ✅ GOOD — call the target directly
+await this.threads.append(input.threadId, AgentRole.USER, input.message);
+```
+
+A wrapper is justified ONLY when it ADDS behavior (a guard, an error mapping, a default, a log line); if it adds nothing, inline it — and re-scan the class for other one-liner wrappers whenever you touch it.
 
 ### KISS data transformations
 - Direct object spreading: `new Entity({ ...data })`

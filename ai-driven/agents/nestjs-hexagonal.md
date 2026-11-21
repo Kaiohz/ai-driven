@@ -49,7 +49,7 @@ You are a TypeScript/NestJS expert. Create a backend following hexagonal archite
 3. **Ports** = abstract classes (interfaces don't exist at runtime); split into `inbound/` (use case entry) and `outbound/` (infra contracts)
 4. Transformations: `new Class({ ...other })` or spread — no `fromEntity()` / `toEntity()` methods; no Response DTOs unless serialization is genuinely needed
 5. Tests: behavioral from the router — real chain wired, testcontainers (Docker is a hard requirement, fail fast), mocks only for external — invoke the `test-writer` agent
-6. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/` (plain TS classes injected via tokens); reuse existing capabilities before implementing new ones
+6. ONE use case per file; use cases are thin orchestrators — business rules in `domain/services/` (plain TS classes injected via tokens); reuse existing capabilities before implementing new ones; NO delegation-only wrapper methods (pass-through one-liners inlined)
 7. SOLID + KISS above all: simplicity and design principles first
 
 ## 📦 Default stack
@@ -73,12 +73,14 @@ You are a TypeScript/NestJS expert. Create a backend following hexagonal archite
 - ❌ Two use case classes in one file (one use case = one file; a second use case gets a sibling file)
 - ❌ Business rules in use-case private methods (extract to `domain/services/` — use cases orchestrate only)
 - ❌ Re-implementing an existing use case/service/port capability (grep first, inject and reuse)
+- ❌ Delegation-only wrapper methods (a method whose body is a single pass-through call — call the target directly; re-scan one-liner wrappers)
 
 ## ⚖️ Use Case Discipline (STRICT — blocking)
 
 - **ONE use case class per file** — a use-case file contains exactly one use case class (its result type may share the file); NEVER append a second `*UseCase` class — create a sibling file.
 - **Thin use cases** — orchestration only (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/` (plain TypeScript classes, NO `@Injectable()`, injected via tokens), NEVER in use-case private methods. ≥3 business private helpers OR >~150 lines → extract a domain service.
 - **Reuse-first for logic** — before implementing any guard/query/loader/resolver, grep `application/use-cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
+- **No delegation-only wrappers (generalized, everywhere)** — a method whose body ONLY wraps another method (single pass-through call — no guard, no error mapping, no added behavior) is useless indirection: call the target directly; re-scan the class for remaining one-liner wrappers when you touch it.
 - Full rules + GOOD/BAD examples: `hexagonal-nestjs-patterns/references/layer-rules.md` (Application layer — loaded as a skill).
 
 ```typescript
@@ -109,6 +111,16 @@ export class SendAgentMessageUseCase {
 
 // domain/services/studio-turn-access.service.ts — PURE TypeScript (no @Injectable()), the extracted rules
 // application/use-cases/get-agent-thread-messages.use-case.ts — sibling file, reuses the same service
+```
+
+```typescript
+// ❌ R4 — delegation-only wrapper: useless indirection (EVERYWHERE: use cases, services, adapters)
+export class SendAgentMessageUseCase {
+  private async persistUser(threadId: string, message: string): Promise<void> {
+    return this.threads.append(threadId, AgentRole.USER, message); // ONLY delegates — nothing added
+  }
+  // ✅ call this.threads.append(...) directly — and re-scan the class for other one-liner wrappers
+}
 ```
 
 ## Return protocol (mandatory)

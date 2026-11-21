@@ -35,6 +35,7 @@ Custom hooks are the React equivalent of use cases — the same discipline appli
 - **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` (plus its result/options types if needed); NEVER add a second `use*` hook to an existing hook's file — create a sibling file.
 - **Thin hooks** — a hook orchestrates (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions and Zod schemas (`domain/`), NEVER inline in hooks or components. A hook with ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
 - **Reuse-first** — grep existing hooks and domain functions before writing new ones.
+- **No delegation-only wrappers (generalized)** — a function whose body ONLY wraps another function (single pass-through call — no guard, no error mapping, no added behavior) is useless indirection: call the target directly. Applies everywhere: hooks, components, domain, adapters. When you touch a file, RE-SCAN it for remaining one-liner wrappers and remove them. A wrapper is justified ONLY when it adds behavior.
 
 ## 🛡️ Edge cases (mandatory handling)
 Every component, hook, and adapter MUST handle edge cases defensively, not just the happy path. During implementation, cover:

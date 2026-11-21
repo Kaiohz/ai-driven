@@ -23,6 +23,7 @@ Load this before review to catch violations.
 - ❌ Multiple custom hooks exported from one file (one hook = one file — hooks are the use-case equivalent)
 - ❌ Business rules inline in hooks or components (extract pure domain functions / Zod schemas in `domain/`)
 - ❌ Re-implementing an existing domain function, hook, or guard (grep first, reuse/inject the real one)
+- ❌ Delegation-only wrapper functions (a function whose body is a single pass-through call to another function — call the target directly; re-scan the file for one-liner wrappers)
 
 ## Critical Reminders
 1. **Domain** = pure TypeScript, zero React dependencies

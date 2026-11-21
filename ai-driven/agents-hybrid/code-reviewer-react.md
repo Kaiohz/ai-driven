@@ -112,6 +112,7 @@ Follow the `code-reviewer` skill's review process exactly:
 - Proper folder structure (domain/, application/hooks/, infrastructure/adapters/)
 - No business logic in components (components are presentation, hooks hold logic)
 - **Hook discipline (blocking check)** — per `hexagonal-react-patterns` (SKILL.md § Hook discipline): ONE custom hook per file; hooks are thin orchestrators with business rules in pure domain functions/Zod schemas (`domain/`), NOT inline in hooks/components. A multi-hook file, a fat hook with inline business rules (≥3 rule helpers or >~150 lines), or logic re-implementing an existing domain function/hook capability is a CRITICAL architecture finding: verify by grepping the codebase for the existing equivalent, then report it in Critical Issues with the extraction/reuse fix.
+- **Wrapper functions (blocking check)** — a function whose body is ONLY a delegation to another function (pass-through one-liner, no guard, no fallback, no added behavior) is useless indirection, EVERYWHERE (hooks, components, domain, adapters). Report each wrapper as a CRITICAL maintainability finding with the inline fix (call the target directly) and re-scan the file for other one-liner wrappers.
 
 ```typescript
 // Flag this shape (the three violations in ONE file):
@@ -120,6 +121,11 @@ export function useThreadMessages(...) { ... }     // ❌ second hook in the SAM
 export function useSendAgentMessage(...) {
   const isOwnerValid = (owner) => owner.orgId === input.orgId; // ❌ business rule inline (→ pure domain fn)
   // ❌ re-implements an existing domain/hook capability — grep first
+}
+
+export function useThreadMessages(repo: AgentRepository) {
+  const list = (id: string) => repo.listMessages(id);        // ❌ R4: delegation-only wrapper
+  return useQuery({ queryKey: ["thread"], queryFn: () => list(id) });
 }
 ```
 

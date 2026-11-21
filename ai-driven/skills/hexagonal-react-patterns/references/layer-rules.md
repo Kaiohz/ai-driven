@@ -42,6 +42,7 @@ export interface UserRepository {
   - **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` only; a second hook gets its own sibling file (hooks are the React use-case equivalent).
   - **Thin hooks** — orchestration only (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions/Zod schemas (`domain/`), NOT inline in hooks. ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
   - **Reuse-first for logic** — grep `domain/` + `application/hooks/` before implementing any guard/mapper/resolver; inject the existing capability.
+  - **No delegation-only wrappers (generalized)** — a function whose body ONLY wraps another function (pass-through one-liner, nothing added) is useless indirection: call the target directly; re-scan the file for remaining one-liner wrappers when you touch it.
 
 ```typescript
 // GOOD — thin hook, rules in a pure domain function
@@ -88,6 +89,22 @@ export function useSendAgentMessage(...) {
 ```
 
 Every ❌ above is a blocking review finding: move the second hook to its own file, extract the rule to a pure domain function, and reuse the existing hook/domain capability.
+
+```typescript
+// R4 — delegation-only wrappers: useless indirection, EVERYWHERE (hooks, components, domain, adapters)
+// ❌ BAD — wrapper over wrapper
+export function useThreadMessages(repo: AgentRepository) {
+  const list = (id: string) => repo.listMessages(id);   // ❌ ONLY delegates — nothing added
+  return useQuery({ queryKey: ["thread"], queryFn: () => list(id) });
+}
+
+// ✅ GOOD — call the target directly
+export function useThreadMessages(repo: AgentRepository) {
+  return useQuery({ queryKey: ["thread"], queryFn: () => repo.listMessages(id) });
+}
+```
+
+A wrapper is justified ONLY when it ADDS behavior (a guard, a fallback, a memo, a log line); if it adds nothing, inline it — and re-scan the file for other one-liner wrappers whenever you touch it.
 
 - **Components**:
   - Small, focused components (<200 lines)

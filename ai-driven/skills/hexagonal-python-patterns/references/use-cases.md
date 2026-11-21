@@ -5,6 +5,7 @@
 1. **ONE use case class per file.** A file in `use_cases/` contains exactly one use case class, named after the file (`send_studio_agent_message.py` → `SendStudioAgentMessageUseCase`). The single result NamedTuple/dataclass of that use case may share the file. NEVER append a second `*UseCase` class to an existing use case's file — create a sibling file (`get_studio_agent_thread_messages.py` → `GetStudioAgentThreadMessagesUseCase`).
 2. **Thin orchestrating use cases.** A use case orchestrates: load → delegate to a domain service/entity → call outbound ports → return. Business rules (validation guards, access policy, org/ownership checks, resolution decisions) NEVER live in use-case private methods — extract them to `domain/services/` as injectable services (pure domain classes, may take outbound ports as constructor deps). Heuristic: ≥3 business private helpers OR >~150 lines → refactor into a domain service. Pure plumbing helpers (logging, background-task shielding) may stay.
 3. **Reuse-first for domain/application logic.** Before implementing any guard, query, loader, or resolver, grep `use_cases/`, `domain/services/`, and `domain/ports/` for an existing capability — inject and reuse it. Re-implementing logic the app already has (e.g. an existing conversation loader, access checker, or message-listing service) is a defect, not a style choice.
+4. **No delegation-only wrappers (generalized).** A method whose body ONLY wraps another method (single pass-through call — no guard, no error mapping, no logging, no added behavior) is useless indirection: call the target directly. Applies everywhere — use cases, domain services, adapters, routes. When you touch a class, RE-SCAN it for remaining one-liner delegation wrappers and remove them. A wrapper is justified ONLY when it adds behavior.
 
 ## GOOD — thin use case, rules in a domain service
 
@@ -92,6 +93,28 @@ class GetStudioAgentThreadMessagesUseCase:                 # ❌ R1: second use 
 ```
 
 Every ❌ above is a blocking review finding: extract the rules to `domain/services/`, move the second class to its own file, and inject the existing capability.
+
+## Wrapper methods (R4 — useless delegation, everywhere)
+
+```python
+# ❌ BAD — wrapper over wrapper (a private method whose body is ONLY a delegation)
+class SendStudioAgentMessageUseCase:
+    async def _append_user(self, thread_id: str, message: str) -> None:
+        return await self._append(thread_id, self._profile_id, self._project_id,
+                                  StudioAgentRole.user, message)   # ONLY delegates — nothing added
+
+    async def execute(self, ...) -> ...:
+        await self._append_user(thread_id, message)   # ❌ through the wrapper
+```
+
+```python
+# ✅ GOOD — call the target directly
+    async def execute(self, ...) -> ...:
+        await self._append(thread_id, profile_id, project_id,
+                          StudioAgentRole.user, message)
+```
+
+A wrapper is justified ONLY when it ADDS behavior (a guard, an error mapping, a default, a log line); if it adds nothing, inline it — and re-scan the class for other one-liner wrappers whenever you touch it.
 
 ## Event-driven use case (inbound port)
 

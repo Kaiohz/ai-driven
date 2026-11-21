@@ -52,6 +52,7 @@ For per-layer file templates, load the relevant reference file below.
   - **ONE use case class per file** — `GetFooUseCase` lives in `get_foo_use_case.py`; NEVER append a second `*UseCase` class to an existing use case's file (its result NamedTuple/dataclass may share the file).
   - **Thin use cases** — a use case orchestrates (load → domain service/entity → outbound ports → return); business rules (validation guards, access policy, ownership checks, resolution logic) belong in `domain/services/`, NEVER in use-case private methods. ≥3 business private helpers or >~150 lines → extract a domain service. Pure plumbing (logging, task shielding) may stay.
   - **Reuse-first for logic** — before implementing any guard/query/loader, grep `use_cases/`, `domain/services/`, `domain/ports/` for an existing capability and inject/reuse it; re-implementing logic the app already has is a defect, not a style choice.
+  - **No delegation-only wrappers (generalized)** — a method whose body ONLY wraps another method (single pass-through call — no guard, no error mapping, no added behavior) is useless indirection: call the target directly. Applies everywhere: use cases, domain services, adapters, routes. When you touch a class, RE-SCAN it for remaining one-liner wrappers and remove them. A wrapper is justified ONLY when it adds behavior.
 
 ## 🛡️ Edge cases (mandatory handling)
 Every use case, adapter, and route MUST handle edge cases defensively, not just the happy path. During implementation, cover:

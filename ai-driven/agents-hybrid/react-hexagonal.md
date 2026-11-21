@@ -68,6 +68,7 @@ Custom hooks are the React equivalent of use cases — the same discipline appli
 - **ONE custom hook per file** — `useUserProfile.ts` exports `useUserProfile` (plus its result/options types if needed); NEVER add a second `use*` hook to an existing hook's file — create a sibling file.
 - **Thin hooks** — a hook orchestrates (fetch via port, delegate rules to domain, expose state); business rules (validation, invariants, state decisions) live in pure domain functions and Zod schemas (`domain/`), NEVER inline in hooks or components. A hook with ≥3 business-rule helpers or >~150 lines → extract a pure domain function.
 - **Reuse-first** — grep existing hooks and domain functions before writing new ones.
+- **No delegation-only wrappers (generalized, everywhere)** — a function whose body ONLY wraps another function (single pass-through call — no guard, no error mapping, no added behavior) is useless indirection: call the target directly; re-scan the file for remaining one-liner wrappers when you touch it.
 - Full rules: `hexagonal-react-patterns` skill (`SKILL.md` § Hook discipline + `references/layer-rules.md` — loaded as skills).
 
 ```typescript
@@ -99,6 +100,15 @@ export function useSendAgentMessage(repo: AgentRepository) {
 }
 ```
 
+```typescript
+// ❌ R4 — delegation-only wrapper: useless indirection (EVERYWHERE: hooks, components, domain, adapters)
+export function useThreadMessages(repo: AgentRepository) {
+  const list = (id: string) => repo.listMessages(id);   // ❌ ONLY delegates — nothing added
+  return useQuery({ queryKey: ["thread"], queryFn: () => list(id) });
+}
+// ✅ call repo.listMessages(id) directly — and re-scan the file for other one-liner wrappers
+```
+
 ## 📌 Critical Reminders
 
 1. **Domain** = pure TypeScript, zero React dependencies
@@ -108,7 +118,7 @@ export function useSendAgentMessage(repo: AgentRepository) {
 5. **Test behavior, not implementation** with React Testing Library — invoke the `test-writer` agent (real implementations for internals, mocks only for external)
 6. **Mobile-first responsive design** with Tailwind breakpoints
 7. **Touch targets** minimum 44x44px on mobile
-8. ONE hook per file; hooks are thin orchestrators — business rules in pure domain functions/Zod schemas; reuse-first for logic as well as UI
+8. ONE hook per file; hooks are thin orchestrators — business rules in pure domain functions/Zod schemas; reuse-first for logic as well as UI; NO delegation-only wrapper functions (pass-through one-liners inlined)
 9. SOLID + KISS: simplicity and design principles above all
 
 ## 📦 Default stack (overridable by repo AGENTS.md)
