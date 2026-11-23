@@ -58,11 +58,11 @@ Follow the `code-reviewer` skill's review process exactly:
 4. Score each of the 6 dimensions 1-10 using the rubric from `code-reviewer` skill's `references/rubric.md`
 5. Decide the overall score holistically from the 6 dimension scores
 6. Decide the verdict (approve / approve with minor comments / request changes / block)
-7. Run `uv run pytest --crap` from the project root to produce the CRAP report, then apply the CRAP gate below
+7. Run `uv run pytest tests/behavioral/<feature>/ --cov=<changed-files> --crap` to produce the CRAP report for the changed files, then apply the CRAP gate below
 
 ## CRAP Gate (mandatory, blocking)
 
-After scoring, run `uv run pytest --crap` and parse the CRAP metrics per function/method.
+After scoring, run `uv run pytest tests/behavioral/<feature>/ --cov=<changed-files> --crap` (targeted specs, coverage limited to the changed files — do NOT run the entire suite; the CI runs the full suite on the PR) and parse the CRAP metrics per function/method. Note: for functions shared with other features, the scoped run can underestimate coverage (overestimate CRAP) — the gate gets stricter, never laxer; if you suspect a false positive, widen the spec scope for that run.
 
 **Gate: any function/method with CRAP > 30 is a CRITICAL finding and forces `request changes`** (independent of the score-based verdict — the score verdict can only be stricter, never laxer).
 
@@ -75,7 +75,7 @@ For EACH function with CRAP > 30, report it in a dedicated `### CRAP Gate` secti
    - **Extract helper functions** to split long functions and reduce cyclomatic complexity
    - **Replace if/elif chains with dict dispatch** or early returns (guard clauses)
    - **Move branch logic into domain entities** or strategy objects instead of inline conditionals
-   - Re-run `uv run pytest --crap` after fixes and iterate until every function is ≤ 30
+   - Re-run the same scoped CRAP command after fixes and iterate until every function is ≤ 30
 
 If the `--crap` flag is unavailable (plugin missing), report `CRAP Gate: SKIPPED (pytest --crap unavailable)` and do not block on it.
 
@@ -177,14 +177,14 @@ Verdict guidance (the CRAP Gate below may force `request changes`):
 
 ### CRAP Gate
 
-Result of the `uv run pytest --crap` gate applied to the changed files:
+Result of the scoped CRAP gate (`uv run pytest tests/behavioral/<feature>/ --cov=<changed-files> --crap`) applied to the changed files:
 - `CRAP Gate: PASS` if every function/method in the changed files has CRAP ≤ 30
 - `CRAP Gate: FAIL` otherwise. List each offending function in a table (Function file:line | CRAP | Complexity | Coverage %) and, for each, give concrete advice to reduce CRAP in priority order:
   1. **Add tests** covering the uncovered branches (cheapest lever — coverage alone often brings CRAP under 30)
   2. **Extract helper functions** to lower cyclomatic complexity
   3. **Guard clauses / early returns / dict dispatch** instead of nested if/elif chains
   4. **Move branch logic into domain entities or strategy objects**
-  5. Re-run `uv run pytest --crap` and iterate until all functions ≤ 30
+  5. Re-run the same scoped CRAP command and iterate until all functions ≤ 30
 
 ### Summary
 One paragraph summarizing the change, its intent, and your overall assessment.
