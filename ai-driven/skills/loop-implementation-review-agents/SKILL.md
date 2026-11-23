@@ -86,7 +86,7 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 |------|------|-----------------|
 | 1 (TDD) | agent | `task` → `test-writer` (SKILL MANDATE injects `test-writer-<lang>`; verify `SKILL_LOADED:`) |
 | 2 (Impl) | agent | `task` → `fastapi-hexagonal` / `react-hexagonal` / `nestjs-hexagonal` (SKILL MANDATE injects architecture + async + performance; verify `SKILL_LOADED:`) |
-| 3 (Test suite) | bash | run full test suite |
+| 3 (Test suite) | bash | run targeted tests (feature specs + affected specs) |
 | 4 (Review) | agent | `task` → `code-reviewer-python` / `code-reviewer-react` / `code-reviewer-nestjs` (SKILL MANDATE injects code-reviewer + hexagonal + async + performance-audit + test-writer; verify `SKILL_LOADED:`) |
 | 5 (Simplify) | skill | `skill` → `code-simplifier` |
 | 6 (Lint) | skill | `skill` → `linter` (ruff + pyright — fix ALL issues incl. pre-existing type errors until 0) |
@@ -120,7 +120,7 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 - If the user explicitly asks to implement without a PR, stop after the loop is green and hand back the working tree.
 - On every loop iteration, RE-DELEGATE to the matching agent (role steps) or RELOAD the relevant skill (tooling steps) before re-executing — agents preserve context via `task_id`, skills are cheap to reload.
 - **On every loop iteration, send a Telegram loop-back notification** (iteration number + one-line reason + what is being redone) via the `telegram` skill BEFORE re-delegating. The send attempt is mandatory on every loop-back; delivery remains best-effort. Same for any question/blocking wait: question notification BEFORE waiting.
-- **Never parallelize agent delegations or skill steps.** Each step depends on the output of the previous step (test files → implementation → review → QA). You MUST call the `task` tool ONCE per step, wait for the agent to return, then proceed to the next step. Do NOT launch multiple `task` calls in a single message. Do NOT run skill steps concurrently. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
+- **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps in a single message. Never run two tickets concurrently in the same working tree.
 
 ## GitHub (default: open a PR)
 

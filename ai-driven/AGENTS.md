@@ -38,8 +38,8 @@
 
 - **Behavioral tests from the router.** The default test entry point is an HTTP request through the real app (httpx AsyncClient on the FastAPI app factory / Supertest on the real NestJS AppModule). Assert the response plus observable side effects; the full chain (router → use case → port → repo) runs real. Never re-declare the real chain in a test module.
 - **Testcontainers mandatory** for real infrastructure (Postgres, Redis, Kafka) — Docker is a hard requirement; fail fast with a clear error when it is unavailable (no SQLite fallback). Mock only external APIs/adapters (email, Stripe, S3); layer-level tests (use case alone, repository alone) are exceptions for non-HTTP logic (cron, queue consumers, pure domain) or adapter-specific SQL.
-- **Always run the full test suite after changes.** Use pytest for Python, npm/yarn test for TypeScript. Confirm ALL tests pass before declaring completion.
-- **Iterate until fully green.** If tests fail after fixes, keep fixing until the ENTIRE suite passes with 0 failures. Don't stop after partial fixes.
+- **Run targeted tests after changes.** Use pytest for Python, npm/yarn test for TypeScript. Run ONLY the tests affected by the change (the feature's spec files plus directly related behavioral specs) — the CI runs the full suite on the PR. Never declare completion with the targeted tests failing.
+- **Iterate until fully green.** If tests fail after fixes, keep fixing until the targeted tests pass with 0 failures. Don't stop after partial fixes.
 - **Never modify test assertions** unless the test is clearly wrong or testing behavior that was intentionally changed.
 
 ## Infrastructure & DevOps

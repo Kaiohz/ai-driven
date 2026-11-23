@@ -59,9 +59,8 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 3. **You MUST NOT create a PR until ALL prior steps are completed.** If you reach the PR step and realize you skipped a step, GO BACK and complete it via the matching agent.
 4. **Before creating a PR, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step** (e.g., QA was rejected), mark it as "skipped by user" — do NOT silently skip it.
-6. **Complete one ticket fully before starting the next.** Never parallelize tickets.
-7. **Never parallelize agent delegations or skill steps.** Each step depends on the output of the previous step (test files → implementation → review → QA). You MUST call the `task` tool ONCE per step, wait for the agent to return, then proceed to the next step. Do NOT launch multiple `task` calls in a single message. Do NOT run skill steps concurrently. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
-8. **Inject the SKILL MANDATE into every agent task prompt.** Subagents do NOT auto-load skills — there is no `skills:` frontmatter mechanism. Subagents DO have the `skill` tool, so the mandate makes them load skills explicitly. The mandate MUST be the FIRST block of the prompt (before the objective and before the ARTIFACT CONTEXT):
+6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps in a single message. Never run two tickets concurrently in the same working tree.
+7. **Inject the SKILL MANDATE into every agent task prompt.** Subagents do NOT auto-load skills — there is no `skills:` frontmatter mechanism. Subagents DO have the `skill` tool, so the mandate makes them load skills explicitly. The mandate MUST be the FIRST block of the prompt (before the objective and before the ARTIFACT CONTEXT):
 
    ```
    SKILL MANDATE (execute FIRST, before reading any file or writing anything):
@@ -202,7 +201,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 ```
 - [ ] 1. TDD — test-writer agent → failing tests written (Red) + `TEST_FILES: <paths>` pointer returned
 - [ ] 2. IMPLEMENTATION — hexagonal agent (backend or frontend) → feature implemented (Green) + `IMPL_FILES: <paths>` pointer returned
-- [ ] 3. TEST SUITE — full test suite run, all green
+- [ ] 3. TESTED — targeted test run (feature specs + affected specs), all green
 - [ ] 4. CODE REVIEW — code-reviewer-<lang> agent → 0 critical + score ≥ 8/10 + `REVIEW: <path>` pointer returned
 - [ ] 5. CODE SIMPLIFIER — code-simplifier skill → complexity reduced
 - [ ] 6. LINTER — linter skill → 0 lint AND type issues (ruff + pyright)
@@ -260,8 +259,8 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "2" "agent" "<agent_name>" "delegated" "<N> files modified"`.
 5. before step 3: `verify-step.sh ... "2" "agent" "<agent_name>"` — if fail, redo step 2.
 
-### 3. Full Test Suite
-1. Run the full test suite yourself via Bash: `uv run pytest tests/ -x -q` (Python), `npx vitest run` (TypeScript). All tests must pass with 0 failures. If a failure appears, loop back to step 2 via the implementation agent (use `task_id` to resume the session).
+### 3. Targeted Test Run
+1. Run the targeted tests yourself via Bash — the feature's new spec files plus directly related behavioral specs: `uv run pytest tests/behavioral/<feature>/ -q` (Python), `npx vitest run <spec-files>` (TypeScript). All must pass with 0 failures. Do NOT re-run the entire suite — the CI runs the full suite on the PR. If a failure appears, loop back to step 2 via the implementation agent (use `task_id` to resume the session).
 2. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "3" "bash" "test-suite" "done" "exit=<code>, pass=<N>"`.
 3. before step 4: `verify-step.sh ... "3" "bash" "test-suite"` — if fail, redo step 3.
 

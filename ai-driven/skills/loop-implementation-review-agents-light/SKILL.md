@@ -86,7 +86,7 @@ The wrapped feature-implementation-light skill is aggressive about loading/deleg
 | 1 (TDD) | agent | `task` → `test-writer` (SKILL MANDATE injects `test-writer-<lang>` + `hexagonal-<lang>` + `async-<lang>`; verify `SKILL_LOADED:`) |
 | 2 (Impl) | agent | `task` → `fastapi-hexagonal` / `react-hexagonal` / `nestjs-hexagonal` (SKILL MANDATE injects architecture + async + performance; verify `SKILL_LOADED:`) |
 | 3 (Review) | agent | `task` → `code-reviewer-python` / `code-reviewer-react` / `code-reviewer-nestjs` (SKILL MANDATE injects code-reviewer + hexagonal + async + performance-audit + test-writer; verify `SKILL_LOADED:`) |
-| 4 (Simplify) | skill | `skill` → `code-simplifier`, then re-run the full test suite |
+| 4 (Simplify) | skill | `skill` → `code-simplifier`, then re-run the targeted tests |
 | 5 (Notify) | skill | `skill` → `telegram`, send completion notification (summary only) |
 
 `<lang>` ∈ {`python`, `react`, `nestjs`} per the detected stack.
@@ -101,4 +101,4 @@ The wrapped feature-implementation-light skill is aggressive about loading/deleg
 - There is NO PR step in this light loop. When the loop is green, simplification is done, and the Telegram notification (step 5) is sent, print the complete 5-step checklist with all boxes checked and hand back the working tree. If the user asks for QA/lint/Sonar/Trivy/docs/PR, switch to `loop-implementation-review-agents` (full version).
 - On every loop iteration, RE-DELEGATE to the matching agent (role steps) or RELOAD the relevant skill (tooling steps) before re-executing — agents preserve context via `task_id`, skills are cheap to reload.
 - **On every loop iteration, send a Telegram loop-back notification** (iteration number + one-line reason + what is being redone) via the `telegram` skill BEFORE re-delegating. The send attempt is mandatory on every loop-back; delivery remains best-effort. Same for any question/blocking wait: question notification BEFORE waiting.
-- **Never parallelize agent delegations or skill steps.** Each step depends on the output of the previous step (test files → implementation → review → simplification). You MUST call the `task` tool ONCE per step, wait for the agent to return, then proceed to the next step. Do NOT launch multiple `task` calls in a single message. Do NOT run skill steps concurrently. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
+- **Parallelize only genuinely independent steps.** Independent tool calls on already-written code CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → simplification) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps in a single message. Never run two tickets concurrently in the same working tree.

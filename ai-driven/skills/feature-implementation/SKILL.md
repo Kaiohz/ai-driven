@@ -52,8 +52,7 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 3. **You MUST NOT create a PR until ALL prior steps are completed.** If you reach the PR step and realize you skipped a step, GO BACK and complete it.
 4. **Before creating a PR, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step** (e.g., QA was rejected), mark it as "skipped by user" — do NOT silently skip it.
-6. **Complete one ticket fully before starting the next.** Never parallelize tickets.
-7. **Never parallelize skill steps.** Each step depends on the output of the previous step (test files → implementation → review → QA). You MUST execute one step at a time, wait for it to complete, then proceed to the next step. Do NOT run skill steps concurrently. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
+6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree.
 
 ## Stack detection (run BEFORE step 1)
 
@@ -99,7 +98,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 ```
 - [ ] 1. TDD — load test-writer-<lang> + hexagonal-<lang> + async-<lang> skills, write failing tests (Red), print `TEST_FILES: <paths>`
 - [ ] 2. IMPLEMENTATION — load hexagonal-<lang> + async-<lang> + performance-audit skills, implement (Green), print `IMPL_FILES: <paths>`
-- [ ] 3. TEST SUITE — run full test suite, all green
+- [ ] 3. TESTED — run targeted tests (feature specs + affected specs), all green
 - [ ] 4. CODE REVIEW — load code-reviewer skill, review, 0 critical + score ≥ 8/10, persist to `<LOOP_DIR>/code-reviews/<slug>.md`, print `REVIEW: <path>`
 - [ ] 5. CODE SIMPLIFIER — load code-simplifier skill, refactor
 - [ ] 6. LINTER — load linter skill, run ruff + pyright / eslint+prettier, fix ALL issues until 0
@@ -138,8 +137,8 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "2" "skill" "hexagonal-<lang>" "loaded" "<N> files modified"`.
 6. before step 3: `verify-step.sh ... "2" "skill" "hexagonal-<lang>"` — if fail, redo step 2.
 
-### 3. Full Test Suite
-1. Run the FULL test suite: `uv run pytest tests/ -x -q` (Python), `npx vitest run` (TypeScript). All tests must pass with 0 failures. If a failure appears, loop back to step 2 (reload the impl skills first).
+### 3. Targeted Test Run
+1. Run the targeted tests — the feature's new spec files plus directly related behavioral specs: `uv run pytest tests/behavioral/<feature>/ -q` (Python), `npx vitest run <spec-files>` (TypeScript). All must pass with 0 failures. Do NOT re-run the entire suite — the CI runs the full suite on the PR. If a failure appears, loop back to step 2 (reload the impl skills first).
 2. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "3" "bash" "test-suite" "done" "exit=<code>, pass=<N>"`.
 3. before step 4: `verify-step.sh ... "3" "bash" "test-suite"` — if fail, redo step 3.
 
@@ -193,7 +192,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 ### 10. Tester-QA
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `test-writer-<lang>` (for e2e spec conventions).
-2. relaunch the app stack: `cd /Users/yohan/git/soludev/soludev-compose-apps/<app_name>/ && docker compose up -d --build --force-recreate` (base compose only), verify with `docker compose ps` + a smoke test of the base URL — STOP and report if it fails. Perform the QA yourself against the relaunched stack (curl for backend-only, Chrome DevTools MCP browser for fullstack): happy + edge + error cases. Transcribe the QA performed into NEW e2e/QA specs validating the shipped feature. Re-running existing tests is not enough. Verify all acceptance criteria are met end-to-end. Replay the feature specs, then the full suite.
+2. relaunch the app stack: `cd /Users/yohan/git/soludev/soludev-compose-apps/<app_name>/ && docker compose up -d --build --force-recreate` (base compose only), verify with `docker compose ps` + a smoke test of the base URL — STOP and report if it fails. Perform the QA yourself against the relaunched stack (curl for backend-only, Chrome DevTools MCP browser for fullstack): happy + edge + error cases. Transcribe the QA performed into NEW e2e/QA specs validating the shipped feature. Re-running existing tests is not enough. Verify all acceptance criteria are met end-to-end. Replay the feature specs.
    **EVIDENCE EXIT GATES — step 10 is NOT done without them:**
    - **Feature coverage:** every new e2e spec must test the feature under test — map each acceptance criterion of the spec to at least one spec test (print the coverage matrix). Generic "app loads" specs do not count.
    - **Front/fullstack →** video evidence is MANDATORY: generate the self-contained report with `node /Users/yohan/.config/opencode/skills/tester-qa/build-qa-video-report.js <e2e_dir>` and print `QA_VIDEO_REPORT: <path> (N videos, X KB)`. No pointer line = QA invalid.

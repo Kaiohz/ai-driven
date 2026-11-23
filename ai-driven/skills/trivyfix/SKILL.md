@@ -104,11 +104,11 @@ Fix in batches of **5–10 findings maximum** per batch, in severity order.
 
 ### 5. Verify After Each Batch
 
-- Run the **full test suite** after each batch:
-  - Python: `pytest`
-  - Node: `npm test` / `yarn test`
-  - Go: `go test ./...`
-  - Java: `mvn test`
+- Run the **targeted tests** after each batch — the specs covering the changed files, not the entire suite (the CI runs the full suite on the PR):
+  - Python: `pytest <spec-files>`
+  - Node: `npm test <spec-files>` / `yarn test <spec-files>`
+  - Go: `go test ./<changed-package>/...`
+  - Java: `mvn test -Dtest=<SpecClasses>`
 - Re-run `trivy fs --format json --output trivy-report-post.json .` after each batch and confirm the fixed CVEs no longer appear
 - If a test fails, fix it before moving to the next batch
 - **Do not proceed to the next batch until the current batch is fully green**

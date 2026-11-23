@@ -87,7 +87,7 @@ If the project has a `lint` script in `package.json`, prefer `npm run lint` or `
 - If linters find auto-fixable issues, apply the fixes automatically
 - If linters find non-auto-fixable issues, **fix them manually — do not just list them**
 - Iterate: run → fix → run again until ALL linters report zero issues
-- Run the full test suite after fixing to ensure no regressions; fix any failing test (a changed behavior may legitimately require updating the test assertion)
+- Run the targeted tests after fixing (specs covering the changed files, not the entire suite — the CI runs the full suite on the PR) to ensure no regressions; fix any failing test (a changed behavior may legitimately require updating the test assertion)
 
 ### 4. Summary
 

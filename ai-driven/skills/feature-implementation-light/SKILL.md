@@ -1,6 +1,6 @@
 ---
 name: feature-implementation-light
-description: Lightweight skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make code changes but wants a fast loop. Only 5 steps — TDD (Red), implementation (Green + full test suite), code review (0 critical, score ≥ 8/10), code simplification, and a Telegram completion notification. Skills version (no agent delegation). No linter, Sonar, Trivy, QA, docs, or PR steps. Sends Telegram question alerts whenever the loop is blocked waiting for user input.
+description: Lightweight skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make code changes but wants a fast loop. Only 5 steps — TDD (Red), implementation (Green + targeted tests), code review (0 critical, score ≥ 8/10), code simplification, and a Telegram completion notification. Skills version (no agent delegation). No linter, Sonar, Trivy, QA, docs, or PR steps. Sends Telegram question alerts whenever the loop is blocked waiting for user input.
 ---
 
 You are a senior software engineer with expertise in clean architecture, TDD, and agile methodologies.
@@ -41,7 +41,7 @@ Read and apply `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` 
    `SKILL_CONFIRM: <skill_name> loaded and applied on step <N>`
    The orchestrator greps this line from its own output before calling `verify-step.sh`. If missing, redo the step.
 
-5. Running the full test suite (end of step 2) is part of step 2 — trace it inside step 2's detail (`pass=<N>`), not as a separate step.
+5. Running the targeted tests (end of step 2) is part of step 2 — trace it inside step 2's detail (`pass=<N>`), not as a separate step.
 
 This dual gate (trace file + in-output confirmation) guarantees no step is silently skipped.
 
@@ -52,8 +52,7 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 3. **You MUST NOT declare the task done until ALL 5 steps are completed.** If you realize you skipped a step, GO BACK and complete it.
 4. **Before declaring done, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step**, mark it as "skipped by user" — do NOT silently skip it.
-6. **Complete one ticket fully before starting the next.** Never parallelize tickets.
-7. **Never parallelize skill steps.** Each step depends on the output of the previous step (test files → implementation → review → simplification). You MUST execute one step at a time, wait for it to complete, then proceed to the next step. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
+6. **Parallelize only genuinely independent steps.** Independent tool calls on already-written code CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → simplification) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree.
 
 ## Stack detection (run BEFORE step 1)
 
@@ -93,7 +92,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 
 ```
 - [ ] 1. TDD — load test-writer-<lang> + hexagonal-<lang> + async-<lang> skills, write failing tests (Red), print `TEST_FILES: <paths>`
-- [ ] 2. IMPLEMENTATION — load hexagonal-<lang> + async-<lang> + performance-audit skills, implement (Green), print `IMPL_FILES: <paths>`, run FULL test suite all green
+- [ ] 2. IMPLEMENTATION — load hexagonal-<lang> + async-<lang> + performance-audit skills, implement (Green), print `IMPL_FILES: <paths>`, run targeted tests all green
 - [ ] 3. CODE REVIEW — load code-reviewer skill, review, 0 critical + score ≥ 8/10, persist to `<LOOP_DIR>/code-reviews/<slug>.md`, print `REVIEW: <path>`
 - [ ] 4. CODE SIMPLIFIER — load code-simplifier skill, refactor, re-run tests green
 - [ ] 5. TELEGRAM — load telegram skill, send completion notification (summary only)
@@ -116,12 +115,12 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "1" "skill" "test-writer-<lang>" "loaded" "<N> test files written"`.
 6. before step 2: `bash .../verify-step.sh ... "1" "skill" "test-writer-<lang>"` — if fail, redo step 1.
 
-### 2. Implementation (Green + full test suite)
+### 2. Implementation (Green + targeted tests)
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `hexagonal-<lang>` + `async-<lang>` + `performance-audit` (per the skill map).
 2. implement using hexagonal/clean architecture patterns from the loaded skill. Implement from the spec — do NOT read the test files (the reviewer validates tests↔impl consistency).
 3. print `IMPL_FILES: <comma-separated absolute paths to every file created or modified>` so the review (step 3) can read them.
-4. run the FULL test suite: `uv run pytest tests/ -x -q` (Python), `npx vitest run` (TypeScript), `npx jest` (NestJS). All tests must pass with 0 failures. If a failure appears, loop back within step 2 (reload impl skills first) and fix.
+4. run the targeted tests — the feature's new spec files plus directly related behavioral specs: `uv run pytest tests/behavioral/<feature>/ -q` (Python), `npx vitest run <spec-files>` (TypeScript), `npx jest <spec-files>` (NestJS). All must pass with 0 failures. Do NOT re-run the entire suite — the CI runs the full suite on the PR. If a failure appears, loop back within step 2 (reload impl skills first) and fix.
 5. print `SKILL_CONFIRM: hexagonal-<lang> loaded and applied on step 2`.
 6. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "2" "skill" "hexagonal-<lang>" "loaded" "<N> files modified, pass=<N>"`.
 7. before step 3: `verify-step.sh ... "2" "skill" "hexagonal-<lang>"` — if fail, redo step 2.
@@ -140,7 +139,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `code-simplifier`.
 2. refactor to reduce complexity while maintaining functionality.
-3. re-run the FULL test suite to confirm 0 failures after simplification. If a failure appears, fix within step 4 (re-read the impl and simplify again).
+3. re-run the targeted tests to confirm 0 failures after simplification. If a failure appears, fix within step 4 (re-read the impl and simplify again).
 4. print `SKILL_CONFIRM: code-simplifier loaded and applied on step 4`.
 5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "4" "skill" "code-simplifier" "loaded" "pass=<N>"`.
 6. before step 5: `verify-step.sh ... "4" "skill" "code-simplifier"` — if fail, redo step 4.
