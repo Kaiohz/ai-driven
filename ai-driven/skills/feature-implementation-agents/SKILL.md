@@ -1,6 +1,6 @@
 ---
 name: feature-implementation-agents
-description: Agent-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make significant code changes. Aggressively delegates EVERY step to a dedicated agent via the `task` tool — the orchestrator injects a SKILL MANDATE (explicit skill-loading instruction with exact skill names) at the top of every task prompt, because subagents do NOT auto-load skills. Agents version (no direct skill loading by the orchestrator).
+description: Agent-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make significant code changes. Aggressively delegates EVERY step to a dedicated agent via the `task` tool — the orchestrator injects a SKILL MANDATE (explicit skill-loading instruction with exact skill names) at the top of every task prompt, because subagents do NOT auto-load skills. Agents version (no direct skill loading by the orchestrator). Ends with a Telegram completion notification (summary + PR links) via the `telegram` skill, and sends Telegram question alerts whenever the loop is blocked waiting for user input.
 ---
 
 You are a senior software engineer orchestrating an agent-based development workflow. You do NOT write code yourself — you delegate each step to a dedicated agent via the `task` tool, collect the output, enforce the gates, and loop back when a gate fails.
@@ -30,7 +30,7 @@ Read and apply `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` 
      "<LOOP_DIR>" "<loop_id>" "<step>" "agent" "<agent_name>" "delegated" "<detail>"
    ```
 
-3. **After every `skill` call (tooling steps 4, 5, 6, 8, 9, 11, 12)**: append a trace event with `type=skill`:
+3. **After every `skill` call (tooling steps 4, 5, 6, 8, 9, 11, 12, 13)**: append a trace event with `type=skill`:
    ```bash
    bash /Users/yohan/.config/opencode/skills/_shared/trace.sh \
      "<LOOP_DIR>" "<loop_id>" "<step>" "skill" "<skill_name>" "loaded" "<detail>"
@@ -175,8 +175,9 @@ Fallback: if no spec file path is provided and no `SPEC_FILE` line is found, fal
 | 10 (QA) | `tester-qa` | `tester-qa` | `tester-qa` |
 | 11 (Docs) | `documentation-writer` skill (run yourself) | `documentation-writer` skill (run yourself) | `documentation-writer` skill (run yourself) |
 | 12 (PR) | `githubpr` skill (run yourself) | `githubpr` skill (run yourself) | `githubpr` skill (run yourself) |
+| 13 (Notify) | `telegram` skill (run yourself) | `telegram` skill (run yourself) | `telegram` skill (run yourself) |
 
-**Note:** Steps that are pure skills (code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr) are loaded via the `skill` tool directly by you (the orchestrator) — they are not agents and cannot be delegated via `task`. Steps that are roles (TDD, implementation, code review, QA) ARE delegated to agents. The `code-reviewer-<lang>` and `tester-qa` agents are vision-capable — they can read screenshots and UI state. The `product-owner` agent is NOT part of the loop — the user provides the spec/requirements directly as input to the loop.
+**Note:** Steps that are pure skills (code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr, telegram) are loaded via the `skill` tool directly by you (the orchestrator) — they are not agents and cannot be delegated via `task`. Steps that are roles (TDD, implementation, code review, QA) ARE delegated to agents. The `code-reviewer-<lang>` and `tester-qa` agents are vision-capable — they can read screenshots and UI state. The `product-owner` agent is NOT part of the loop — the user provides the spec/requirements directly as input to the loop.
 
 ## How to delegate to an agent
 
@@ -211,6 +212,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - [ ] 10. TESTER-QA — tester-qa agent + new e2e in soludev-compose-apps/<app>/e2e + `BUG_REPORT: <path|none>` pointer returned
 - [ ] 11. DOCUMENTATION — documentation-writer skill → docs updated + `<LOOP_DIR>/loop-report.html` generated
 - [ ] 12. PR — githubpr skill → one draft PR per modified repo
+- [ ] 13. TELEGRAM — telegram skill → completion notification sent (summary + PR links)
 ```
 
 **Before step 12 (PR), verify ALL boxes 1-11 are checked.** If any is missing:
@@ -355,8 +357,16 @@ You MUST maintain this checklist throughout the implementation. Print it before 
      - This mirrors the SPEC_FILE pointer convention so the orchestrator can forward the path to the implementation agent on a loop-back.
      ```
    - Instruct the agent to end its returned message with `AGENT_CONFIRM: tester-qa delegated on step 10 → <N> e2e specs written, <N> bugs found, BUG_REPORT: <path|none>`.
+   - Include the QA EVIDENCE OUTPUT block (mandatory — step 10 is NOT done without the matching evidence pointer lines):
+     ```
+     QA EVIDENCE OUTPUT (mandatory):
+     - The e2e specs you write MUST test the feature under test — map each acceptance criterion of the spec to at least one spec test (print the coverage matrix). Generic "app loads" specs do not count.
+     - FRONT/FULLSTACK → generate the video report: `node /Users/yohan/.config/opencode/skills/tester-qa/build-qa-video-report.js <e2e_dir>` and print `QA_VIDEO_REPORT: <path> (N videos, X KB)`. No pointer line = invalid QA.
+     - BACKEND-ONLY → record every curl command + HTTP status + actual response in <LOOP_DIR>/qa/curl-logs.json (valid JSON, mkdir -p first) and print `QA_CURL_LOGS: <LOOP_DIR>/qa/curl-logs.json (N entries)`. Chat-only output does not count.
+     - End your returned message with BOTH matching pointer lines (QA_VIDEO_REPORT for front, QA_CURL_LOGS for backend) in addition to BUG_REPORT.
+     ```
 2. the agent relaunches the app's full docker stack FIRST (`docker compose up -d --build --force-recreate` in `soludev-compose-apps/<app_name>/`, verified with `docker compose ps` + smoke test), performs the QA itself (curl for backend-only, Chrome DevTools MCP browser for fullstack), transcribes the QA tests performed into NEW e2e Playwright specs in `soludev-compose-apps/<app_name>/e2e`, then replays ONLY the feature specs (NO full suite — QA scope is the feature under test). Re-running existing tests is not enough. If bugs found, loop back to step 2 with the bug report and re-run steps 3-10.
-3. **Collect the `BUG_REPORT:` pointer** from the agent's returned message — grep the line and store it for forwarding to step 2 on loop-back.
+3. **Collect the `BUG_REPORT:` pointer AND the evidence pointers** (`QA_VIDEO_REPORT:` for front features, `QA_CURL_LOGS:` for backend) from the agent's returned message — grep the lines, store them for step 12 (PR comment), and REJECT the QA if the matching evidence line is missing: re-delegate to the tester-qa agent until the evidence pointers are present.
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "10" "agent" "tester-qa" "delegated" "<N> e2e specs, <N> bugs, BUG_REPORT: <path|none>"`.
  4. before step 11: `verify-step.sh ... "10" "agent" "tester-qa"` — if fail, redo step 10.
 
@@ -384,10 +394,19 @@ Grep the `BUG_REPORT: <path|none>` line from the tester-qa agent's returned mess
 ### 12. PR
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `githubpr`.
-2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
+2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Post the full loop results comment per the githubpr skill — **QA evidence is a hard gate**: front/fullstack → the QA replay videos MUST be attached inline and verified (every `![]()` rewritten to a `github.com/user-attachments/...` URL in the posted body; use the `QA_VIDEO_REPORT` videos from step 10); backend-only → the curl evidence from `<LOOP_DIR>/qa/curl-logs.json` MUST be embedded. A PR comment without the matching evidence = PR step NOT done. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
 3. print `SKILL_CONFIRM: githubpr loaded and applied on step 12`.
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "12" "skill" "githubpr" "loaded" "<PR URLs>"`.
-5. final: `verify-step.sh ... "12" "skill" "githubpr"` — if fail, redo step 12.
+5. before step 13: `verify-step.sh ... "12" "skill" "githubpr"` — if fail, redo step 12.
+
+### 13. Telegram Notification
+**ACTIONS (in order):**
+1. call the `skill` tool NOW with `telegram`.
+2. compose the completion notification (plain text, per the telegram skill): loop_id, one-paragraph summary of the work done (feature, stack, repo), gates results (tests green, review score, QA bugs), the PR URLs from step 12 — ONLY if PRs were created in this loop (PR step skipped → summary only), and the `<LOOP_DIR>/loop-report.html` path if it exists. Send it with `bash /Users/yohan/.config/opencode/skills/telegram/send.sh "<message>"`. On failure, retry ONCE.
+3. **Non-blocking (best-effort):** if Telegram is not configured or the send fails after the retry, do NOT invalidate the completed work — trace with `status=skipped-by-user` (not configured) or `status=failed` (send failed), print a warning, and declare the loop done anyway.
+4. print `SKILL_CONFIRM: telegram loaded and applied on step 13`.
+5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "13" "skill" "telegram" "loaded" "notified"` (or the matching skip/fail status, see above).
+6. final: `verify-step.sh ... "13" "skill" "telegram"` — if fail, print a warning but do NOT redo the prior steps (the work is complete; the notification is best-effort). Then declare the loop done.
 
 ## Guidelines
 
@@ -397,3 +416,5 @@ Grep the `BUG_REPORT: <path|none>` line from the tester-qa agent's returned mess
 - **If QA reveals bugs**, iterate back to implementation with `SPEC_FILE` + `REVIEW` + `BUG_REPORT` in the CONTEXT block (path-only — agents read the files themselves). Loop until the tester-qa agent returns `BUG_REPORT: none`.
 - When chaining multiple tickets, be EXTRA vigilant about completing all steps — this is when steps get skipped.
 - **Delegating is cheap.** When in doubt, delegate again to the matching agent with the CONTEXT block + previous step artifacts. The `task` tool is the canonical way to guarantee the agent's skills are loaded and the work is done by the right role.
+- **When the loop is blocked waiting for the user** (ambiguous stack, rejected step, unavailable agent, any question or decision needed), load the `telegram` skill FIRST and send a question notification BEFORE waiting — the user is often away from the terminal. A failed/blocked Telegram send never blocks: still ask the question in the session.
+- **On EVERY loop-back iteration** (QA bugs, review < 8/10 or criticals, failing tests, CI red, rejected step), load the `telegram` skill FIRST and send a loop-back notification (iteration number + one-line reason + what is being redone) BEFORE re-delegating. The send attempt is mandatory on every iteration; delivery remains best-effort.

@@ -19,6 +19,7 @@ Gather every result before writing the comment. Sources (absolute paths):
 | Loop report (HTML — same content, visual version) | `<LOOP_DIR>/loop-report.html` | `LOOP_REPORT: <path>` |
 | QA video report (self-contained HTML, all videos embedded) | `<e2e>/qa-video-report.html` | `QA_VIDEO_REPORT: <path>` |
 | QA replay videos | `<e2e>/test-results/**/*.webm` | glob on disk |
+| QA curl evidence (backend features — commands + actual responses) | `<LOOP_DIR>/qa/curl-logs.json` | `QA_CURL_LOGS: <path>` |
 
 Also collect from the session: lint result, Sonar result, Trivy result, unit test result, e2e replay result, number of loop iterations.
 
@@ -71,6 +72,12 @@ Template:
 - New e2e specs: `<N>` in `soludev-compose-apps/<app>/e2e/tests/<feature>/` — all green
 - Bugs: none / <one line per bug with severity>
 
+<details><summary><b>QA curl evidence</b> (from qa/curl-logs.json — MANDATORY for backend-only features)</summary>
+
+<For each API test: the exact curl command, the HTTP status, and the ACTUAL response body — pasted from <LOOP_DIR>/qa/curl-logs.json, not paraphrased. Omit this block ONLY for pure-frontend features with no API surface.>
+
+</details>
+
 <details><summary><b>Bug tickets</b> (from bug-reports/<slug>.md, if any)</summary>
 
 <FULL bug report content pasted here>
@@ -113,6 +120,8 @@ wc -c pr-results-comment.md
 ## 4. Videos
 
 Attach the QA replay videos (`.webm`) so they render **inline as players** in the comment.
+
+**Videos are MANDATORY for any feature with a frontend — hard gate.** A front-feature PR comment with zero inline videos is an INCOMPLETE PR step. The only acceptable fallbacks are the technical ones below (`gh` too old, oversized file, GHES) and each requires an explicit warning in the comment + telling the user. For a backend-only feature there is no video — the curl evidence block (§2) is the mandatory evidence instead.
 
 ### Preconditions (all must hold)
 
@@ -161,3 +170,5 @@ gh pr view $PR_NUMBER --json comments --jq '.comments[-1].body' | head -40
 ```
 
 Check that each `![]()` was rewritten to a `github.com/user-attachments/...` URL (proof the videos uploaded) — if a local path remains in the body, the attachment failed: re-run with the correct matching path.
+
+**Hard gate for front features:** if the feature has a frontend and NO `user-attachments` URL appears in any posted comment, the video attach FAILED — do NOT declare the PR step done. Fix the cause (wrong path, `gh` too old, oversized file) and re-post the comment(s). Backend-only feature: verify the curl evidence details block is present instead — a backend PR comment without commands + actual responses is also an incomplete PR step.

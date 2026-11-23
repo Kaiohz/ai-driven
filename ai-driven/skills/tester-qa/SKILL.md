@@ -168,6 +168,8 @@ Validate every endpoint of the feature against the relaunched stack.
 
 Use `python3 -c` to append JSON entries atomically after each curl. The full file must be valid JSON parseable by any tool.
 
+**Exit gate (BACK_ONLY):** the QA session is INVALID if `<LOOP_DIR>/qa/curl-logs.json` is missing, not valid JSON, or does not contain the real command + HTTP status + actual response body for every endpoint tested. Curl output pasted only in the chat does NOT count — the file is the evidence. End your session with the pointer line `QA_CURL_LOGS: <LOOP_DIR>/qa/curl-logs.json (N entries)`.
+
 ```bash
 # Example pattern — always use -v or -w to capture status + body
 curl -s -w "\n\nHTTP STATUS: %{http_code}\n" "URL" \
@@ -255,6 +257,18 @@ Also validate the API contract with curl (the browser alone hides raw response c
 ## STEP 4 — Transcribe the QA Tests into Playwright Specs
 
 Every QA test you performed in STEP 3 must become a permanent spec — happy paths, edge cases, AND error cases. Update existing specs to match the validated behavior; create the missing ones. This is the only output that persists across sessions.
+
+### Feature Coverage Contract (hard gate — the QA is INVALID without it)
+
+The e2e specs you write must test **the feature under test — the one described in the spec file — nothing generic**:
+
+1. **Read the spec's acceptance criteria FIRST.** Build a coverage matrix BEFORE writing specs: one row per acceptance criterion (+ every edge/error case you QA'd in STEP 3), each mapped to at least one spec test. An acceptance criterion with no spec covering it = STEP 4 NOT done.
+2. **Specs must exercise the feature's own flows and surface** — its routes/pages, its forms, its buttons, its API endpoints, its data. A spec that only checks "the app loads" or "login works" is NOT feature coverage and does not count.
+3. **Test IDs and spec files are named after the feature** (`tests/<feature>/...`, `[FEATURE]-[ACTION]-[SCENARIO]`), and every spec asserts feature-specific outcomes — visible feature data, feature API calls with status + payload assertions — never a bare `200 OK`.
+4. **Every manual QA test from STEP 3 becomes a spec.** If you QA'd 12 flows, the spec suite must cover those 12 flows — happy, edge AND error.
+5. **Self-check before leaving STEP 4:** print the coverage matrix (acceptance criterion / QA'd flow → spec file :: test ID). Any uncovered row → write the missing spec before proceeding.
+
+A green replay of generic or unrelated specs is a FAILED QA. The session is not complete until the feature itself is covered and green.
 
 ### Repository structure
 
@@ -461,6 +475,8 @@ If they fail due to a real bug, keep them red and file a bug report. If they fai
 
 ### Video mirror of the QA replay
 
+**HARD EXIT GATE for any app with a frontend.** A FULLSTACK QA session is INVALID without the `QA_VIDEO_REPORT:` pointer line below — videos of the replayed feature specs are the proof the feature was really tested.
+
 Every replayed spec is recorded: the e2e configs use `video: 'on'`, so each test produces a `.webm` under `test-results/`. After the replay, generate the self-contained HTML video report — ONE file on disk with every video embedded (base64 data URI, no server needed, plays with a simple double-click even after `test-results/` or the HTML report are cleaned):
 
 ```bash
@@ -608,6 +624,14 @@ Always report the replay video mirror right after the table (the exact line prin
 ```
 QA_VIDEO_REPORT: <app_name>/e2e/qa-video-report.html (N videos, X KB)
 ```
+
+And the curl evidence pointer (BACK_ONLY, and the API-contract part of FULLSTACK):
+
+```
+QA_CURL_LOGS: <LOOP_DIR>/qa/curl-logs.json (N entries)
+```
+
+**Both pointer lines are MANDATORY exit gates:** `QA_VIDEO_REPORT` for any app with a frontend, `QA_CURL_LOGS` for any backend/API QA. A session summary missing the matching pointer line(s) is an INVALID QA session — the orchestrator MUST reject it and send the QA back.
 
 | Stack relaunched | Feature baseline | Passed | Failed | QA tests performed | New specs written | New specs passing |
 |-------------------|------------------|--------|--------|--------------------|------------------|-------------------|

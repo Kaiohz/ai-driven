@@ -27,8 +27,8 @@ prompt-rules/
     ├── agents-spark/                   # Profile: spark (soludevtech LiteLLM models)
     ├── agents-hybrid/                  # Profile: hybrid (mixed models + extra agents)
     │
-    ├── skills/                         # 32 skills (+ _shared/ trace helpers)
-    ├── commands/                       # 32 command shims (one per skill)
+    ├── skills/                         # 33 skills (+ _shared/ trace helpers)
+    ├── commands/                       # 32 command shims (one per manually-invocable skill — `telegram` is loop-invoked, no shim)
     │
     ├── opencode.json                   # Main config — API keys REDACTED
     ├── opencode-cloud.json             # Alternate profile config — API keys REDACTED
@@ -117,7 +117,7 @@ permissions:
 
 ## Skills
 
-32 skills providing specialized capabilities:
+33 skills providing specialized capabilities:
 
 | Skill | Purpose |
 |-------|---------|
@@ -150,6 +150,7 @@ permissions:
 | `test-writer-nestjs` | Behavioral Jest/Supertest tests on the real AppModule |
 | `test-writer-python` | Behavioral pytest/httpx tests on the real FastAPI app |
 | `test-writer-react` | Component/e2e Vitest + RTL + MSW tests |
+| `telegram` | Telegram notifications via Bot API — loop completion (summary + PR links) and question/blocked alerts |
 | `tester-qa` | Docker stack relaunch + curl/Chrome DevTools QA, Playwright transcription |
 | `trivyfix` | Trivy vulnerability remediation |
 | `vercel-react-best-practices` | React/Next.js performance rules from Vercel Engineering |
@@ -194,11 +195,19 @@ The `feature-implementation` skill orchestrates the full development cycle throu
   PHASE 6: OPEN PR
   ┌──────────────────────────────────────────────────────────────────┐
   │ githubpr                                                         │
-  │ Branch → Push → Draft PR → CI polling → Ready (merge is manual)  │
+  │ Branch → Push → Draft PR → CI polling → Ready (merge is manual)   │
+  └──────────────────────────────────────────────────────────────────┘
+                                       ▼
+  PHASE 7: NOTIFY
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ telegram                                                         │
+  │ Telegram completion notification (summary + PR links)            │
   └──────────────────────────────────────────────────────────────────┘
 ```
 
 Phase 4 includes feedback loops: if sonarfix or trivyfix find issues, iterate back to implementation and re-run the check.
+
+The `telegram` skill is also used **mid-loop**: whenever the loop is blocked waiting for user input (ambiguous stack, decision needed, rejected step), it sends a Telegram question alert before waiting. Notifications are best-effort — a missing config or failed send never invalidates the completed work.
 
 ### Security auditing (optional)
 

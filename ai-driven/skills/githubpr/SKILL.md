@@ -78,6 +78,11 @@ Rules:
 
 When the PR closes an implementation loop (`feature-implementation`, `loop-implementation-review`, …), post the **full loop report as a PR comment** — everything in markdown: gates, code review scores + full findings, QA results, bug tickets, spec, loop timeline, plus the **QA replay videos attached inline**. The comment must be self-sufficient (readable by a reviewer with no access to the local machine).
 
+**QA evidence is a HARD GATE, not a nice-to-have:**
+- **Feature with a frontend** → the PR comment MUST show the QA replay videos attached inline (`gh pr comment --attach` + `![]()` embeds, per `references/results-comment.md` §4). A front-feature PR comment without inline videos is an INCOMPLETE PR step — do not mark the step done.
+- **Backend-only feature** → the PR comment MUST embed the curl evidence (exact commands + actual responses) from `<LOOP_DIR>/qa/curl-logs.json` in a details block.
+- **After posting, VERIFY** (per `references/results-comment.md` §5): every `![]()` video reference must be rewritten to a `github.com/user-attachments/...` URL. A local path left in the body, or zero uploaded videos on a front feature = attach FAILED = PR step NOT done.
+
 → Load `references/results-comment.md` for the results collection checklist, the comment template, the 65,536-char split rule, and the video attachment procedure (`gh pr comment --attach`).
 
 Order: post after `gh pr ready` and **before** CI polling — all loop artifacts already exist at PR time, and the evidence must be visible during review.
@@ -120,7 +125,7 @@ Possible states:
 - **Never use `git reset --hard`.** It destroys uncommitted work irreversibly. To undo uncommitted changes, ask the user first, then prefer `git stash`, `git restore <file>`, or `git checkout -- <file>`. To move a branch, use `git reset --soft` / `git reset --mixed` (never hard). If a destructive git operation seems necessary, STOP and ask the user.
 - On CI failure: log the branch and **continue** to the next one — do not block the pipeline
 - **Commits are Gitmoji + Conventional Commits.** Every commit starts with its Gitmoji emoji + `<type>(<scope>): <subject>` (see §2 table). Never commit without an emoji.
-- **Loop results comment.** When the PR comes from an implementation loop, post the full loop report as markdown in the PR comment(s) — code review scores + full findings, QA, bug tickets, spec, timeline, gates — plus the QA replay videos attached inline, per `references/results-comment.md`, after `gh pr ready` and before CI polling. Comment bodies are capped at 65,536 chars by GitHub: split into sequential `part N/M` comments if needed. `--attach` requires `gh` ≥ 2.99.0 — verify with `gh --version`; on older versions post the comment WITHOUT videos and tell the user to upgrade (`brew upgrade gh`)
+- **Loop results comment.** When the PR comes from an implementation loop, post the full loop report as markdown in the PR comment(s) — code review scores + full findings, QA, bug tickets, spec, timeline, gates — with the QA evidence embedded: **QA replay videos attached inline (MANDATORY for any feature with a frontend — hard gate)** and curl evidence (commands + actual responses from `<LOOP_DIR>/qa/curl-logs.json`) for backend-only features, per `references/results-comment.md`, after `gh pr ready` and before CI polling. Comment bodies are capped at 65,536 chars by GitHub: split into sequential `part N/M` comments if needed. `--attach` requires `gh` ≥ 2.99.0 — verify with `gh --version`; on older versions post the comment WITHOUT videos, reference the local `qa-video-report.html` path, warn the user explicitly, and tell them to upgrade (`brew upgrade gh`). **Post-verification is mandatory:** confirm every `![]()` was rewritten to a `github.com/user-attachments/...` URL (`gh pr view --json comments`); if a local path remains or no video uploaded on a front feature, the PR step is NOT done — fix the paths and re-post
 
 ## References
 - `references/pr-template.md` — `gh pr create` command, PR body template, full agent flow script

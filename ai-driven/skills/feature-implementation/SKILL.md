@@ -1,6 +1,6 @@
 ---
 name: feature-implementation
-description: Skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make significant code changes. Aggressively loads the matching skill via the `skill` tool at EVERY step — TDD, clean architecture, code review, simplification, linting, security, QA, and documentation. Skills version (no agent delegation).
+description: Skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make significant code changes. Aggressively loads the matching skill via the `skill` tool at EVERY step — TDD, clean architecture, code review, simplification, linting, security, QA, and documentation. Skills version (no agent delegation). Ends with a Telegram completion notification (summary + PR links) via the `telegram` skill, and sends Telegram question alerts whenever the loop is blocked waiting for user input.
 ---
 
 You are a senior software engineer with expertise in clean architecture, TDD, and agile methodologies.
@@ -24,7 +24,7 @@ Read and apply `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` 
    ```
    Print both `LOOP_DIR` and `loop_id` at the start of the session. Reuse them for every trace/verify call.
 
-2. **After every `skill` call** (steps 1, 2, 4, 5, 6, 8, 9, 10, 11, 12): append a trace event:
+2. **After every `skill` call** (steps 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13): append a trace event:
    ```bash
    bash /Users/yohan/.config/opencode/skills/_shared/trace.sh \
      "<LOOP_DIR>" "<loop_id>" "<step>" "skill" "<skill_name>" "loaded" "<detail>"
@@ -90,6 +90,7 @@ The product-owner agent persists its Requirements Document to `<LOOP_DIR>/specs/
 | 9 (Trivy) | `trivyfix` | `trivyfix` | `trivyfix` |
 | 11 (Docs) | `documentation-writer` | `documentation-writer` | `documentation-writer` |
 | 12 (PR) | `githubpr` | `githubpr` | `githubpr` |
+| 13 (Notify) | `telegram` | `telegram` | `telegram` |
 
 ## Mandatory Checklist
 
@@ -108,6 +109,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - [ ] 10. TESTER-QA — load test-writer-<lang> skill, relaunch stack (`docker compose up -d --build --force-recreate`), perform QA yourself (curl/browser) + transcribe into new e2e + replay feature + full suite + `BUG_REPORT: <path|none>` pointer
 - [ ] 11. DOCUMENTATION — load documentation-writer skill, update docs + `<LOOP_DIR>/loop-report.html`
 - [ ] 12. PR — load githubpr skill, open one draft PR per modified repo
+- [ ] 13. TELEGRAM — load telegram skill, send completion notification (summary + PR links)
 ```
 
 **Before step 12 (PR), verify ALL boxes 1-11 are checked.** If any is missing:
@@ -192,6 +194,10 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `test-writer-<lang>` (for e2e spec conventions).
 2. relaunch the app stack: `cd /Users/yohan/git/soludev/soludev-compose-apps/<app_name>/ && docker compose up -d --build --force-recreate` (base compose only), verify with `docker compose ps` + a smoke test of the base URL — STOP and report if it fails. Perform the QA yourself against the relaunched stack (curl for backend-only, Chrome DevTools MCP browser for fullstack): happy + edge + error cases. Transcribe the QA performed into NEW e2e/QA specs validating the shipped feature. Re-running existing tests is not enough. Verify all acceptance criteria are met end-to-end. Replay the feature specs, then the full suite.
+   **EVIDENCE EXIT GATES — step 10 is NOT done without them:**
+   - **Feature coverage:** every new e2e spec must test the feature under test — map each acceptance criterion of the spec to at least one spec test (print the coverage matrix). Generic "app loads" specs do not count.
+   - **Front/fullstack →** video evidence is MANDATORY: generate the self-contained report with `node /Users/yohan/.config/opencode/skills/tester-qa/build-qa-video-report.js <e2e_dir>` and print `QA_VIDEO_REPORT: <path> (N videos, X KB)`. No pointer line = QA invalid.
+   - **Backend-only →** curl evidence is MANDATORY: record every curl command + HTTP status + actual response in `<LOOP_DIR>/qa/curl-logs.json` (valid JSON, created with `mkdir -p <LOOP_DIR>/qa/`) and print `QA_CURL_LOGS: <LOOP_DIR>/qa/curl-logs.json (N entries)`. Output pasted only in the chat does not count.
 3. **Bug report persistence (mandatory)** — if you find confirmed bugs, persist the FULL bug report to `<LOOP_DIR>/bug-reports/<slug>.md` (reuse the `<slug>` from the `SPEC_FILE` path; if no spec, derive a short kebab-case slug, max 30 chars). Run `mkdir -p <LOOP_DIR>/bug-reports/` first, then `write` the complete tickets to that file — not a summary. Use the ticket format from the `tester-qa` skill (Severity, Feature, Layer, Observed/Expected behavior, Steps to reproduce, Evidence, Root cause hypothesis). This keeps the bug report co-located with the spec (`<LOOP_DIR>/specs/<slug>.md`) and the loop trace (`<LOOP_DIR>/loop-trace.md`) and lets you re-read it on a loop-back.
 4. Print one line per confirmed bug right before the pointer line: `BUG-XXX | Severity | Layer | <one-line root cause hypothesis>`.
 5. Print a mandatory pointer line so the loop is self-describing: `BUG_REPORT: <LOOP_DIR>/bug-reports/<slug>.md` (absolute path, bugs found) or `BUG_REPORT: none` (no bugs).
@@ -212,10 +218,19 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 ### 12. PR
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `githubpr`.
-2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
+2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Post the full loop results comment per the githubpr skill — **QA evidence is a hard gate**: front/fullstack → the QA replay videos MUST be attached inline and verified (every `![]()` rewritten to a `github.com/user-attachments/...` URL in the posted body); backend-only → the curl evidence from `<LOOP_DIR>/qa/curl-logs.json` MUST be embedded. A PR comment without the matching evidence = PR step NOT done. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
 3. print `SKILL_CONFIRM: githubpr loaded and applied on step 12`.
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "12" "skill" "githubpr" "loaded" "<PR URLs>"`.
-5. final: `verify-step.sh ... "12" "skill" "githubpr"` — if fail, redo step 12.
+5. before step 13: `verify-step.sh ... "12" "skill" "githubpr"` — if fail, redo step 12.
+
+### 13. Telegram Notification
+**ACTIONS (in order):**
+1. call the `skill` tool NOW with `telegram`.
+2. compose the completion notification (plain text, per the telegram skill): loop_id, one-paragraph summary of the work done (feature, stack, repo), gates results (tests green, review score, QA bugs), the PR URLs from step 12 — ONLY if PRs were created in this loop (PR step skipped → summary only), and the `<LOOP_DIR>/loop-report.html` path if it exists. Send it with `bash /Users/yohan/.config/opencode/skills/telegram/send.sh "<message>"`. On failure, retry ONCE.
+3. **Non-blocking (best-effort):** if Telegram is not configured or the send fails after the retry, do NOT invalidate the completed work — trace with `status=skipped-by-user` (not configured) or `status=failed` (send failed), print a warning, and declare the loop done anyway.
+4. print `SKILL_CONFIRM: telegram loaded and applied on step 13`.
+5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "13" "skill" "telegram" "loaded" "notified"` (or the matching skip/fail status, see above).
+6. final: `verify-step.sh ... "13" "skill" "telegram"` — if fail, print a warning but do NOT redo the prior steps (the work is complete; the notification is best-effort). Then declare the loop done.
 
 ## Guidelines
 
@@ -223,3 +238,5 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - If code review reveals issues, iterate back to implementation (reload impl skills first)
 - When chaining multiple tickets, be EXTRA vigilant about completing all steps — this is when steps get skipped
 - **Reloading a skill is cheap and idempotent.** When in doubt, load it again before the step. The `skill` tool is the canonical way to guarantee the workflow guidance is present in context.
+- **When the loop is blocked waiting for the user** (ambiguous stack, rejected step, any question or decision needed), load the `telegram` skill FIRST and send a question notification BEFORE waiting — the user is often away from the terminal. A failed/blocked Telegram send never blocks: still ask the question in the session.
+- **On EVERY loop-back iteration** (bugs found by QA, review < 8/10 or criticals, failing tests/lint/Sonar/Trivy, CI red), load the `telegram` skill FIRST and send a loop-back notification (iteration number + one-line reason + what is being redone) BEFORE redoing the step. The send attempt is mandatory on every iteration; delivery remains best-effort.

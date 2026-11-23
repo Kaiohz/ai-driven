@@ -1,6 +1,6 @@
 ---
 name: feature-implementation-light
-description: Lightweight skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make code changes but wants a fast loop. Only 4 steps — TDD (Red), implementation (Green + full test suite), code review (0 critical, score ≥ 8/10), and code simplification. Skills version (no agent delegation). No linter, Sonar, Trivy, QA, docs, or PR steps.
+description: Lightweight skill-driven development workflow for implementation tasks. Use this skill when the user asks to implement a feature, fix a bug, or make code changes but wants a fast loop. Only 5 steps — TDD (Red), implementation (Green + full test suite), code review (0 critical, score ≥ 8/10), code simplification, and a Telegram completion notification. Skills version (no agent delegation). No linter, Sonar, Trivy, QA, docs, or PR steps. Sends Telegram question alerts whenever the loop is blocked waiting for user input.
 ---
 
 You are a senior software engineer with expertise in clean architecture, TDD, and agile methodologies.
@@ -24,7 +24,7 @@ Read and apply `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` 
    ```
    Print both `LOOP_DIR` and `loop_id` at the start of the session. Reuse them for every trace/verify call.
 
-2. **After every `skill` call** (all steps — 1, 2, 3, 4): append a trace event:
+2. **After every `skill` call** (all steps — 1, 2, 3, 4, 5): append a trace event:
    ```bash
    bash /Users/yohan/.config/opencode/skills/_shared/trace.sh \
      "<LOOP_DIR>" "<loop_id>" "<step>" "skill" "<skill_name>" "loaded" "<detail>"
@@ -49,7 +49,7 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 
 1. **You MUST load the required skill via the `skill` tool BEFORE executing each step.** Loading a skill is not optional — it is the first action of every step. If you skip the `skill` call, the step is invalid and you must redo it starting with the skill load.
 2. **You MUST follow EVERY step in order.** No step can be skipped, even if it seems trivial or unnecessary.
-3. **You MUST NOT declare the task done until ALL 4 steps are completed.** If you realize you skipped a step, GO BACK and complete it.
+3. **You MUST NOT declare the task done until ALL 5 steps are completed.** If you realize you skipped a step, GO BACK and complete it.
 4. **Before declaring done, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step**, mark it as "skipped by user" — do NOT silently skip it.
 6. **Complete one ticket fully before starting the next.** Never parallelize tickets.
@@ -85,6 +85,7 @@ If a spec or requirements context exists, use it as the requirements context for
 | 2 (Impl) | `hexagonal-python-patterns` + `async-python-patterns` + `performance-audit` | `hexagonal-react-patterns` + `async-react-patterns` + `vercel-react-best-practices` + `performance-audit` | `hexagonal-nestjs-patterns` + `async-nestjs-patterns` + `performance-audit` |
 | 3 (Review) | `code-reviewer` + `hexagonal-python-patterns` + `async-python-patterns` + `performance-audit` + `test-writer-python` | `code-reviewer` + `hexagonal-react-patterns` + `async-react-patterns` + `performance-audit` + `test-writer-react` | `code-reviewer` + `hexagonal-nestjs-patterns` + `async-nestjs-patterns` + `performance-audit` + `test-writer-nestjs` |
 | 4 (Simplify) | `code-simplifier` | `code-simplifier` | `code-simplifier` |
+| 5 (Notify) | `telegram` | `telegram` | `telegram` |
 
 ## Mandatory Checklist
 
@@ -95,6 +96,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - [ ] 2. IMPLEMENTATION — load hexagonal-<lang> + async-<lang> + performance-audit skills, implement (Green), print `IMPL_FILES: <paths>`, run FULL test suite all green
 - [ ] 3. CODE REVIEW — load code-reviewer skill, review, 0 critical + score ≥ 8/10, persist to `<LOOP_DIR>/code-reviews/<slug>.md`, print `REVIEW: <path>`
 - [ ] 4. CODE SIMPLIFIER — load code-simplifier skill, refactor, re-run tests green
+- [ ] 5. TELEGRAM — load telegram skill, send completion notification (summary only)
 ```
 
 **Before declaring done, verify ALL boxes 1-4 are checked.** If any is missing:
@@ -141,7 +143,16 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 3. re-run the FULL test suite to confirm 0 failures after simplification. If a failure appears, fix within step 4 (re-read the impl and simplify again).
 4. print `SKILL_CONFIRM: code-simplifier loaded and applied on step 4`.
 5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "4" "skill" "code-simplifier" "loaded" "pass=<N>"`.
-6. final: print the complete checklist with all boxes checked, then declare done.
+6. before step 5: `verify-step.sh ... "4" "skill" "code-simplifier"` — if fail, redo step 4.
+
+### 5. Telegram Notification
+**ACTIONS (in order):**
+1. call the `skill` tool NOW with `telegram`.
+2. compose the completion notification (plain text, per the telegram skill): loop_id, one-paragraph summary of the work done (feature, stack, repo), and gates results (tests green, review score). There is no PR step in this light loop — include PR links ONLY if PRs were actually created during the loop (summary only otherwise). Send it with `bash /Users/yohan/.config/opencode/skills/telegram/send.sh "<message>"`. On failure, retry ONCE.
+3. **Non-blocking (best-effort):** if Telegram is not configured or the send fails after the retry, do NOT invalidate the completed work — trace with `status=skipped-by-user` (not configured) or `status=failed` (send failed), print a warning, and declare the task done anyway.
+4. print `SKILL_CONFIRM: telegram loaded and applied on step 5`.
+5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "5" "skill" "telegram" "loaded" "notified"` (or the matching skip/fail status, see above).
+6. final: `verify-step.sh ... "5" "skill" "telegram"` — if fail, print a warning but do NOT redo the prior steps (the work is complete; the notification is best-effort). Then print the complete checklist with all boxes checked and declare done.
 
 ## Guidelines
 
@@ -149,4 +160,6 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - If code review reveals issues, iterate back to implementation (reload impl skills first)
 - When chaining multiple tickets, be EXTRA vigilant about completing all steps — this is when steps get skipped
 - **Reloading a skill is cheap and idempotent.** When in doubt, load it again before the step. The `skill` tool is the canonical way to guarantee the workflow guidance is present in context.
+- **When the loop is blocked waiting for the user** (ambiguous stack, rejected step, any question or decision needed), load the `telegram` skill FIRST and send a question notification BEFORE waiting — the user is often away from the terminal. A failed/blocked Telegram send never blocks: still ask the question in the session.
+- **On EVERY loop-back iteration** (review < 8/10 or criticals, failing tests, rejected step), load the `telegram` skill FIRST and send a loop-back notification (iteration number + one-line reason + what is being redone) BEFORE redoing the step. The send attempt is mandatory on every iteration; delivery remains best-effort.
 - This skill is the LIGHT variant: no linter, SonarQube, Trivy, QA/e2e, documentation, or PR steps. If the user asks for those, switch to `feature-implementation`.

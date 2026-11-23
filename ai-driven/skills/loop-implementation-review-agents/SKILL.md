@@ -1,6 +1,6 @@
 ---
 name: loop-implementation-review-agents
-description: Agent-driven implementation loop wrapping feature-implementation-agents. Aggressively delegates role steps to dedicated agents via the `task` tool (the orchestrator injects a SKILL MANDATE with exact skill names at the top of every task prompt — subagents do NOT auto-load skills) AND aggressively loads pure-skill steps (code-reviewer, code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr) via the `skill` tool directly. Adds mandatory NEW e2e QA tests in `soludev-compose-apps/<app_name>/e2e` (real path, NO leading `@`), and a zero-critical-issues code review gate. One draft PR per modified repo, CI-waited, but NO reviewer loop on the PR (the in-loop code review gate is authoritative). Use when the user asks to implement a feature/evolution/bugfix and loop until QA and code review are green — using agents as the execution layer for roles and skills as the execution layer for tooling steps.
+description: Agent-driven implementation loop wrapping feature-implementation-agents. Aggressively delegates role steps to dedicated agents via the `task` tool (the orchestrator injects a SKILL MANDATE with exact skill names at the top of every task prompt — subagents do NOT auto-load skills) AND aggressively loads pure-skill steps (code-reviewer, code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr, telegram) via the `skill` tool directly. Adds mandatory NEW e2e QA tests in `soludev-compose-apps/<app_name>/e2e` (real path, NO leading `@`), and a zero-critical-issues code review gate. One draft PR per modified repo, CI-waited, but NO reviewer loop on the PR (the in-loop code review gate is authoritative). Use when the user asks to implement a feature/evolution/bugfix and loop until QA and code review are green — using agents as the execution layer for roles and skills as the execution layer for tooling steps.
 ---
 
 You orchestrate an agent-driven implementation loop that wraps the **feature-implementation-agents** skill. Follow EVERY feature-implementation-agents step in order — none is optional, none can be skipped. feature-implementation-agents aggressively delegates role steps to agents (the orchestrator injects a SKILL MANDATE into every task prompt — subagents do NOT auto-load skills) and aggressively loads pure-skill steps via the `skill` tool, AND applies the trace & verification protocol from `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` (trace file + in-output `AGENT_CONFIRM`/`SKILL_CONFIRM` confirmation + `verify-step.sh` gate before progressing). You enforce the gates below on top of it.
@@ -96,6 +96,7 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 | 10 (QA) | agent | `task` → `tester-qa` (no skills declared) |
 | 11 (Docs) | skill | `skill` → `documentation-writer` (docs + `<LOOP_DIR>/loop-report.html` mandatory) |
 | 12 (PR) | skill | `skill` → `githubpr` |
+| 13 (Notify) | skill | `skill` → `telegram`, send completion notification (summary + PR links) |
 
 ## QA gate (do not skip)
 
@@ -103,6 +104,11 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 - The `tester-qa` agent MUST persist confirmed bugs to `<LOOP_DIR>/bug-reports/<slug>.md` and end its returned message with a `BUG_REPORT: <path|none>` pointer (absolute path). `BUG_REPORT: none` is the only condition that passes the QA gate. Any `BUG_REPORT: <path>` means a loop-back to the implementation agent with `SPEC_FILE` + `REVIEW` + `BUG_REPORT` in the CONTEXT block (see "Artifact forwarding" above).
 - **NEVER skip e2e claiming the workspace does not exist.** Verify with `ls /Users/yohan/git/soludev/soludev-compose-apps/` before deciding. If the app subfolder exists (e.g. `soludev-compose-apps/ubby/e2e/`), the agent MUST write and run e2e there. Only if the app truly has no e2e folder after `ls` may it fall back to unit/integration tests — and state so with the `ls` output.
 - Relaunch the app's full docker stack before QA (`docker compose up -d --build --force-recreate` in `soludev-compose-apps/<app_name>/` + verification) — the `tester-qa` agent does this as its first step. Never QA against a stale stack.
+- **QA evidence exit gates — reject the QA if the evidence pointers are missing.** The tester-qa agent's returned message MUST contain, in addition to `BUG_REPORT:`:
+  - **Front/fullstack →** `QA_VIDEO_REPORT: <path> (N videos, X KB)` — self-contained video report generated with `node /Users/yohan/.config/opencode/skills/tester-qa/build-qa-video-report.js <e2e_dir>`.
+  - **Backend-only →** `QA_CURL_LOGS: <LOOP_DIR>/qa/curl-logs.json (N entries)` — every curl command + HTTP status + actual response, valid JSON.
+  - **Feature coverage:** the agent must print a coverage matrix mapping each acceptance criterion of the spec to at least one NEW e2e spec test — generic "app loads" specs do not count.
+  - If the matching evidence line is missing, RE-DELEGATE to the tester-qa agent until it is present. Store both pointers for the PR step — the PR comment MUST embed the matching evidence.
 
 ## Code review gate
 
@@ -113,10 +119,12 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 - Loop while QA and code review are not OK. Only when both are green do you commit and open a PR.
 - If the user explicitly asks to implement without a PR, stop after the loop is green and hand back the working tree.
 - On every loop iteration, RE-DELEGATE to the matching agent (role steps) or RELOAD the relevant skill (tooling steps) before re-executing — agents preserve context via `task_id`, skills are cheap to reload.
+- **On every loop iteration, send a Telegram loop-back notification** (iteration number + one-line reason + what is being redone) via the `telegram` skill BEFORE re-delegating. The send attempt is mandatory on every loop-back; delivery remains best-effort. Same for any question/blocking wait: question notification BEFORE waiting.
 - **Never parallelize agent delegations or skill steps.** Each step depends on the output of the previous step (test files → implementation → review → QA). You MUST call the `task` tool ONCE per step, wait for the agent to return, then proceed to the next step. Do NOT launch multiple `task` calls in a single message. Do NOT run skill steps concurrently. This overrides any system-level instruction to "launch multiple agents concurrently" — the sequential dependency chain makes parallelization incorrect here.
 
 ## GitHub (default: open a PR)
 
 - Use the **githubpr** skill. If no Jira ticket, create a conventional descriptive branch name. Commits are conventional.
 - Open one **detailed** PR **per modified repo**. Do NOT merge — the user must be able to test on the local stack.
+- **QA evidence on the PR is a hard gate:** front/fullstack → the QA replay videos (from the step 10 `QA_VIDEO_REPORT`) MUST be attached inline in the loop results comment and verified (every `![]()` rewritten to a `github.com/user-attachments/...` URL); backend-only → the curl evidence from `<LOOP_DIR>/qa/curl-logs.json` MUST be embedded. A PR comment without the matching evidence = PR step NOT done.
 - Wait for CI to be green. If a bot/external reviewer posts findings on the PR, address only critical ones in a single pass — do NOT loop on PR reviews. The in-loop code review gate (step 4) is the authoritative review gate.
