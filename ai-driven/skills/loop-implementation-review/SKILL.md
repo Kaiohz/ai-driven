@@ -72,7 +72,7 @@ The wrapped feature-implementation skill loads the required skill via the `skill
 - If the user explicitly asks to implement without a PR, stop after the loop is green and hand back the working tree.
 - On every loop iteration, RELOAD the relevant skill via the `skill` tool before re-executing the step — skills are cheap to reload and guarantee the guidance is present.
 - **On every loop iteration, send a Telegram loop-back notification** (iteration number + one-line reason + what is being redone) via the `telegram` skill BEFORE re-executing the step. The send attempt is mandatory on every loop-back; delivery remains best-effort. Same for any question/blocking wait: question notification BEFORE waiting.
-- **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree.
+- **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel.
 
 ## GitHub (default: open a PR)
 
