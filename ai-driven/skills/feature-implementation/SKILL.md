@@ -52,7 +52,7 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 3. **You MUST NOT create a PR until ALL prior steps are completed.** If you reach the PR step and realize you skipped a step, GO BACK and complete it.
 4. **Before creating a PR, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step** (e.g., QA was rejected), mark it as "skipped by user" — do NOT silently skip it.
-6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel.
+6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel — their full pipelines (implementation, code review, QA) run concurrently, one per repo.
 
 ## Stack detection (run BEFORE step 1)
 
