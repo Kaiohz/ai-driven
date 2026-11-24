@@ -53,6 +53,7 @@
 ## Language
 
 - The user works in French and English. Match the language of your responses to the language of the user's message. 
+- **Everything written INTO the codebase is ALWAYS in English.** Commit messages, code comments, branch names, PR titles and descriptions, test descriptions, and any other code artifact — regardless of the conversation language. Only your chat responses follow the user's language.
 
 ## Tools
 - **Activate the project in serena**
