@@ -102,7 +102,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - [ ] 4. CODE REVIEW — load code-reviewer skill, review, 0 critical + score ≥ 8/10, persist to `<LOOP_DIR>/code-reviews/<slug>.md`, print `REVIEW: <path>`
 - [ ] 5. CODE SIMPLIFIER — load code-simplifier skill, refactor
 - [ ] 6. LINTER — load linter skill, run ruff + pyright / eslint+prettier, fix ALL issues until 0
-- [ ] 7. UNIT TESTS — run all unit tests
+- [ ] 7. TARGETED RE-RUN — feature + affected specs green again after simplification/lint (NO full suite — CI runs it)
 - [ ] 8. SONARQUBE — load sonarfix skill, run sonar-scanner, 0 new issues
 - [ ] 9. TRIVY — load trivyfix skill, run trivy fs scan, 0 new vulns
 - [ ] 10. TESTER-QA — load test-writer-<lang> skill, relaunch stack (`docker compose up -d --build --force-recreate`), perform QA yourself (curl/browser) + transcribe into new e2e + replay feature + full suite + `BUG_REPORT: <path|none>` pointer
@@ -168,10 +168,10 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "6" "skill" "linter" "loaded" "<N> issues fixed"`.
 5. before step 7: `verify-step.sh ... "6" "skill" "linter"` — if fail, redo step 6.
 
-### 7. Unit Tests
-1. Run all unit tests again via Bash to ensure no regressions.
-2. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "7" "bash" "unit-tests" "done" "exit=<code>, pass=<N>"`.
-3. before step 8: `verify-step.sh ... "7" "bash" "unit-tests"` — if fail, redo step 7.
+### 7. Targeted Re-Run (post-simplification)
+1. Re-run the targeted tests — the same scope as step 3 (the feature's new spec files plus directly related behavioral specs), plus the specs covering any file the simplifier (step 5) or linter (step 6) modified: `uv run pytest tests/behavioral/<feature>/ -q` (Python), `npx vitest run <spec-files>` (TypeScript). All must pass with 0 failures. Do NOT run the full suite — the CI runs the full suite on the PR. If a failure appears, loop back to step 2 (reload the impl skills first).
+2. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "7" "bash" "targeted-rerun" "done" "exit=<code>, pass=<N>"`.
+3. before step 8: `verify-step.sh ... "7" "bash" "targeted-rerun"` — if fail, redo step 7.
 
 ### 8. SonarQube
 **ACTIONS (in order):**

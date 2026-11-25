@@ -94,7 +94,7 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 | 4b (Security) | agent (conditional) | `task` → `security-agent` (SKILL MANDATE injects security-audit + guidance-mode focused-review instruction; verify `SKILL_LOADED:`) — only if the diff touches a security-sensitive surface; else print `SECURITY: skipped (<reason>)` and trace a `done` event |
 | 5 (Simplify) | skill | `skill` → `code-simplifier` |
 | 6 (Lint) | skill | `skill` → `linter` (ruff + pyright — fix ALL issues incl. pre-existing type errors until 0) |
-| 7 (Unit tests) | bash | run all unit tests |
+| 7 (Targeted re-run) | bash | re-run the step-3 targeted scope (feature specs + affected specs, incl. anything the simplifier/linter touched) — NO full suite |
 | 8 (Sonar) | skill | `skill` → `sonarfix` |
 | 9 (Trivy) | skill | `skill` → `trivyfix` |
 | 10 (QA) | agent | `task` → `tester-qa` (no skills declared) |
