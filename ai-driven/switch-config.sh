@@ -3,8 +3,8 @@
 # Commute le profil agents de opencode. Profil actif: agents/ (vrai dossier)
 # contenant des symlinks PAR FICHIER vers agents-<profil>/*.md.
 #
-#   spark  : impl + test-writer + security qwen3.6-35b, QA ornith-1.5-35b (soludevtech),
-#            reviewers minimax-m3.1-flash (ollama-cloud)
+#   spark  : tout sur soludevtech — impl + test-writer + security qwen3.6-35b,
+#            reviewers + QA ornith-1.5-35b
 #   cloud  : impl glm-5.3-flash, reviewers + QA minimax-m3.1-flash, security glm-5.3-flash (ollama-cloud)
 #   hybrid : impl + test-writer qwen3.6-35b (soludevtech), reviewers minimax-m3.1-flash,
 #            QA + security glm-5.3-flash (ollama-cloud)

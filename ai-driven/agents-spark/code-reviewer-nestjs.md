@@ -1,6 +1,6 @@
 ---
 description: Code review agent for NestJS/TypeScript. Auto-loads code-reviewer, hexagonal-nestjs-patterns, async-nestjs-patterns, performance-audit, and test-writer-nestjs skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing NestJS/TypeScript code in the implementation loop.
-model: ollama-cloud/minimax-m3.1-flash
+model: soludevtech/ornith-1.5-35b
 
 mode: all
 permissions:

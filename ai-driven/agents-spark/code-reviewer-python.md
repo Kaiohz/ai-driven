@@ -1,6 +1,6 @@
 ---
 description: Code review agent for Python/FastAPI. Auto-loads code-reviewer, hexagonal-python-patterns, async-python-patterns, performance-audit, and test-writer-python skills. Grades code across 6 dimensions with stack-specific knowledge. Invoke when reviewing Python/FastAPI code in the implementation loop.
-model: ollama-cloud/minimax-m3.1-flash
+model: soludevtech/ornith-1.5-35b
 
 mode: all
 permissions:
