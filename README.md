@@ -25,7 +25,7 @@ prompt-rules/
     ├── agents/                         # ACTIVE profile snapshot (real files)
     ├── agents-cloud/                   # Profile: cloud (ollama-cloud models)
     ├── agents-spark/                   # Profile: spark (soludevtech LiteLLM models)
-    ├── agents-hybrid/                  # Profile: hybrid (mixed models + extra agents)
+    ├── agents-hybrid/                  # Profile: hybrid (mixed models)
     │
     ├── skills/                         # 33 skills (+ _shared/ trace helpers)
     ├── commands/                       # 32 command shims (one per manually-invocable skill — `telegram` is loop-invoked, no shim)
@@ -72,7 +72,7 @@ The same 11 core agents exist in three profiles with different models. `switch-c
 | `security-agent` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` | `soludevtech/qwen3.6-35b` |
 | `product-owner`, `k3s-devops` | session default | session default | session default |
 
-"Session default" = no `model:` line in the agent frontmatter, the agent inherits the session's default model. The `hybrid` profile adds three extra agents — `agno-engineer`, `langchain-engineer`, `promptfoo-engineer` — all on the session default.
+"Session default" = no `model:` line in the agent frontmatter, the agent inherits the session's default model.
 
 ```bash
 ./switch-config.sh            # show active profile
@@ -96,8 +96,6 @@ The same 11 core agents exist in three profiles with different models. `switch-c
 | `tester-qa` | E2E QA (docker stack relaunch + curl/Chrome DevTools MCP) and Playwright spec transcription |
 | `k3s-devops` | K3s/Flux CD infrastructure management (GitOps) |
 | `security-agent` | Security questions, focused vulnerability reviews, and the full 6-phase audit/pen-test workflow via the exclusive `security-audit` skill |
-
-The `hybrid` profile adds: `agno-engineer`, `langchain-engineer`, `promptfoo-engineer`.
 
 ### Authorization model
 
