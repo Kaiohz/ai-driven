@@ -65,7 +65,7 @@ The same 11 core agents exist in three profiles with different models. `switch-c
 
 | Role | `cloud` | `hybrid` | `spark` |
 |------|---------|----------|---------|
-| Implementation (`fastapi/nestjs/react-hexagonal`) | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` |
+| Implementation (`fastapi/nestjs/react-hexagonal`) | `ollama-cloud/glm-5.3-flash` | `soludevtech/qwen3.6-35b` | `soludevtech/qwen3.6-35b` |
 | Code reviewers (`code-reviewer-*`) | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/minimax-m3.1-flash` |
 | `tester-qa` | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/glm-5.3-flash` | `soludevtech/ornith-1.5-35b` |
 | `test-writer` | session default | `soludevtech/qwen3.6-35b` | `soludevtech/qwen3.6-35b` |

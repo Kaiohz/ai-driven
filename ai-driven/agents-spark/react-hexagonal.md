@@ -1,6 +1,6 @@
 ---
 description: Use it for implementing the task asked by the user
-model: ollama-cloud/glm-5.3-flash
+model: soludevtech/qwen3.6-35b
 
 mode: all
 permissions:

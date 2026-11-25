@@ -3,9 +3,11 @@
 # Commute le profil agents de opencode. Profil actif: agents/ (vrai dossier)
 # contenant des symlinks PAR FICHIER vers agents-<profil>/*.md.
 #
-#   spark  : tout sur qwen3.6-35b (soludevtech)
-#   cloud  : implémentations glm-5.3 (ollama-cloud), reviewers + QA kimi-k3
-#   hybrid : implémentations qwen3.6-35b (soludevtech), reviewers + QA glm-5.3-flash
+#   spark  : impl + test-writer + security qwen3.6-35b, QA ornith-1.5-35b (soludevtech),
+#            reviewers minimax-m3.1-flash (ollama-cloud)
+#   cloud  : impl glm-5.3-flash, reviewers + QA minimax-m3.1-flash, security glm-5.3-flash (ollama-cloud)
+#   hybrid : impl + test-writer qwen3.6-35b (soludevtech), reviewers minimax-m3.1-flash,
+#            QA + security glm-5.3-flash (ollama-cloud)
 #
 # v2: la discovery des agents ne suit PAS les symlinks de répertoires
 # (le dossier agents doit être un vrai dossier) — on symlinde les .md un par un.
