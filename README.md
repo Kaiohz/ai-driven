@@ -63,11 +63,16 @@ done
 
 The same 11 core agents exist in three profiles with different models. `switch-config.sh <profile>` repopulates `agents/` with per-file symlinks to the chosen profile's `.md` files (OpenCode does not follow directory symlinks).
 
-| Profile | Implementation agents | Reviewer + QA agents | Extras |
-|---------|------------------------|----------------------|--------|
-| `cloud` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/minimax-m3.1-flash` | `security-agent`: `ollama-cloud/glm-5.3-flash` |
-| `spark` | `soludevtech/qwen3.6-35b` | `soludevtech/ornith-1.5-35b` | `security-agent`: `soludevtech/qwen3.6-35b` |
-| `hybrid` | `soludevtech/qwen3.6-35b` | `ollama-cloud/glm-5.3-flash` | `security-agent`: `ollama-cloud/glm-5.3-flash` + `agno-engineer`, `langchain-engineer`, `promptfoo-engineer` |
+| Role | `cloud` | `hybrid` | `spark` |
+|------|---------|----------|---------|
+| Implementation (`fastapi/nestjs/react-hexagonal`) | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` |
+| Code reviewers (`code-reviewer-*`) | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/minimax-m3.1-flash` |
+| `tester-qa` | `ollama-cloud/minimax-m3.1-flash` | `ollama-cloud/glm-5.3-flash` | `soludevtech/ornith-1.5-35b` |
+| `test-writer` | session default | `soludevtech/qwen3.6-35b` | `soludevtech/qwen3.6-35b` |
+| `security-agent` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/glm-5.3-flash` | `soludevtech/qwen3.6-35b` |
+| `product-owner`, `k3s-devops` | session default | session default | session default |
+
+"Session default" = no `model:` line in the agent frontmatter, the agent inherits the session's default model. The `hybrid` profile adds three extra agents — `agno-engineer`, `langchain-engineer`, `promptfoo-engineer` — all on the session default.
 
 ```bash
 ./switch-config.sh            # show active profile
