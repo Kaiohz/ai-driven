@@ -20,7 +20,7 @@ loop_id="$(basename "${LOOP_DIR}")"
 The wrapped feature-implementation-agents skill writes a trace event to `<LOOP_DIR>/loop-trace.md` after every agent delegation (`type=agent`) and every skill load (`type=skill`), and verifies it before moving to the next step. You (the orchestrator) MUST:
 1. Print the `LOOP_DIR` and `loop_id` at the start of the session.
 2. After every loop iteration (QA or code review failed → back to implementation), verify the full trace is consistent: `cat <LOOP_DIR>/loop-trace.md` and confirm every step N has a `delegated`/`loaded`/`done` event before the iteration ended.
-3. Before opening the PR, run `verify-step.sh` for every step 1-11 in order. If any fails, STOP and redo the missing step.
+3. Before opening the PR, run `verify-step.sh` for every step 1-11 (including 4b — delegated or traced `done` as skipped) in order. If any fails, STOP and redo the missing step.
 
 ## Conventions
 
@@ -31,7 +31,7 @@ The wrapped feature-implementation-agents skill writes a trace event to `<LOOP_D
 - Backend (NestJS) → `nestjs-hexagonal` agent (SKILL MANDATE: `hexagonal-nestjs-patterns`, `async-nestjs-patterns`, `performance-audit`).
 - Frontend / React App → `react-hexagonal` agent (SKILL MANDATE: `hexagonal-react-patterns`, `async-react-patterns`, `vercel-react-best-practices`, `performance-audit`). Use OpenDesign MCP and respect the Open Design maquette and the `<app-name>` design system.
 - The orchestrator does NOT write code — it delegates to agents and loads skills for tooling steps.
-- **NEVER use the `general` agent as a fallback.** When a role step requires an agent, you MUST use the DEDICATED agent from the map above (`test-writer`, `fastapi-hexagonal`, `react-hexagonal`, `nestjs-hexagonal`, `code-reviewer-<lang>`, `tester-qa`). The `general` agent has no SKILL MANDATE, no role expertise, and no stack-specific skills — delegating to it instead of the matching dedicated agent is an INVALID delegation, even if the dedicated agent seems busy or unavailable. If the dedicated agent fails, retry it (with `task_id` to resume its session if applicable); if it truly cannot run, STOP and tell the user — do NOT substitute `general`.
+- **NEVER use the `general` agent as a fallback.** When a role step requires an agent, you MUST use the DEDICATED agent from the map above (`test-writer`, `fastapi-hexagonal`, `react-hexagonal`, `nestjs-hexagonal`, `code-reviewer-<lang>`, `security-agent`, `tester-qa`). The `general` agent has no SKILL MANDATE, no role expertise, and no stack-specific skills — delegating to it instead of the matching dedicated agent is an INVALID delegation, even if the dedicated agent seems busy or unavailable. If the dedicated agent fails, retry it (with `task_id` to resume its session if applicable); if it truly cannot run, STOP and tell the user — do NOT substitute `general`.
 
 ## SPEC reading + skill loading by subagents (non-negotiable, EVERY delegation)
 
@@ -54,6 +54,7 @@ The wrapped feature-implementation-agents skill implements systematic artifact f
 | Test files | `TEST_FILES: <paths>` | step 1 (test-writer) | in repo — agent returns paths | Steps 4, 10 (NOT step 2) |
 | Impl files | `IMPL_FILES: <paths>` | step 2 (impl) | in repo — agent returns paths | Steps 4, 10 |
 | Code review | `REVIEW: <path>` | step 4 (code-reviewer) | `<LOOP_DIR>/code-reviews/<slug>.md` | Step 2 (on loop-back), step 10 |
+| Security review | `SECURITY: <path>` | step 4b (security-agent) | `<LOOP_DIR>/security-reviews/<slug>.md` | Step 2 (on loop-back), step 12 |
 | Bug report | `BUG_REPORT: <path>` | step 10 (tester-qa) | `<LOOP_DIR>/bug-reports/<slug>.md` | Step 2 (on loop-back), step 4 (on re-review) |
 
 ### Per-stage forwarding matrix
@@ -63,6 +64,7 @@ The wrapped feature-implementation-agents skill implements systematic artifact f
 | 1 (TDD) | test-writer | `SPEC_FILE` |
 | 2 (Impl) | impl agent | `SPEC_FILE` + (on loop-back: `REVIEW` + `BUG_REPORT`) — **no TEST_FILES** |
 | 4 (Review) | code-reviewer | `SPEC_FILE` + `TEST_FILES` + `IMPL_FILES` + (on re-review: prev `REVIEW` + `BUG_REPORT`) |
+| 4b (Security) | security-agent | `SPEC_FILE` + `IMPL_FILES` + `REVIEW` + (on re-review: prev `SECURITY`) |
 | 10 (QA) | tester-qa | `SPEC_FILE` + `TEST_FILES` + `IMPL_FILES` + `REVIEW` + (on loop-back: prev `BUG_REPORT`) |
 
 ### Orchestrator duties
@@ -75,6 +77,7 @@ The wrapped feature-implementation-agents skill implements systematic artifact f
 ### Loop-back rules
 
 - **Code review failed** (critical > 0 or score < 8) → loop back to step 2. Forward `SPEC_FILE` + `REVIEW` to the impl agent so it reads the review and fixes every critical issue.
+- **Security failed** (`SECURITY: <path>` with ≥1 confirmed finding) → loop back to step 2. Forward `SPEC_FILE` + `REVIEW` + `SECURITY` to the impl agent. Loop until `SECURITY: none`. needs_validation findings do not block — they must be embedded in the PR comment.
 - **QA failed** (`BUG_REPORT: <path>`) → loop back to step 2. Forward `SPEC_FILE` + `REVIEW` + `BUG_REPORT` to the impl agent. Loop until `BUG_REPORT: none`.
 - **On re-review** (step 4 after a fix) → forward the previous `REVIEW` + `BUG_REPORT` (if QA also failed) so the reviewer can verify fixes against the original findings.
 
@@ -88,6 +91,7 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 | 2 (Impl) | agent | `task` → `fastapi-hexagonal` / `react-hexagonal` / `nestjs-hexagonal` (SKILL MANDATE injects architecture + async + performance; verify `SKILL_LOADED:`) |
 | 3 (Test suite) | bash | run targeted tests (feature specs + affected specs) |
 | 4 (Review) | agent | `task` → `code-reviewer-python` / `code-reviewer-react` / `code-reviewer-nestjs` (SKILL MANDATE injects code-reviewer + hexagonal + async + performance-audit + test-writer; verify `SKILL_LOADED:`) |
+| 4b (Security) | agent (conditional) | `task` → `security-agent` (SKILL MANDATE injects security-audit + guidance-mode focused-review instruction; verify `SKILL_LOADED:`) — only if the diff touches a security-sensitive surface; else print `SECURITY: skipped (<reason>)` and trace a `done` event |
 | 5 (Simplify) | skill | `skill` → `code-simplifier` |
 | 6 (Lint) | skill | `skill` → `linter` (ruff + pyright — fix ALL issues incl. pre-existing type errors until 0) |
 | 7 (Unit tests) | bash | run all unit tests |
@@ -114,13 +118,20 @@ The wrapped feature-implementation-agents skill is aggressive about loading/dele
 
 - The `code-reviewer-<lang>` agent MUST report **0 critical issues** and a score **≥ 8/10** before you open any PR. It MUST persist the full review to `<LOOP_DIR>/code-reviews/<slug>.md` and return a `REVIEW: <path>` pointer. Loop back to the implementation agent (reload via `task` with `task_id` to resume session) with `SPEC_FILE` + `REVIEW` in the CONTEXT block if any critical issue remains or the score is below 8.
 
+## Security gate (conditional)
+
+- After the code review gate passes (step 4) and before step 5, decide whether the change touches a security-sensitive surface (grep the diff / `IMPL_FILES` + the spec for): authentication/sessions/JWT/guards/permissions, new or modified HTTP endpoints or input parsing, secrets/credentials/env handling, data isolation (multi-tenant, ownership checks), file uploads, webhooks/payments/external API calls, LLM/AI prompt construction, crypto/hashing.
+- **Triggered** → `task` → `security-agent` with: the SKILL MANDATE (`security-audit`), the explicit instruction that this is a FOCUSED review in guidance mode (scope limited to the listed files — NOT an audit: no six-phase workflow, no output directory, no audit artifacts), the ARTIFACT CONTEXT block (`SPEC_FILE` + `IMPL_FILES` + `REVIEW`; on re-review add prev `SECURITY`), and the persist instruction (persist findings to `<LOOP_DIR>/security-reviews/<slug>.md`, then print `SECURITY: <path|none>`). Verify `SKILL_LOADED: security-audit`. A full audit of the application is NEVER the goal here — only the feature diff is in scope.
+- **Not triggered** → print `SECURITY: skipped (no security-sensitive surface: <one-line reason>)` and trace step 4b as `type=agent`, target `security-agent`, `status=done` — the verify gate passes.
+- **Gate:** any confirmed finding (`SECURITY: <path>`) → loop back to step 2 (see Loop-back rules). `SECURITY: none` or `skipped` passes. needs_validation findings do NOT block the loop, but MUST be embedded in the PR comment (step 12).
+
 ## Loop
 
 - Loop while QA and code review are not OK. Only when both are green do you commit and open a PR.
 - If the user explicitly asks to implement without a PR, stop after the loop is green and hand back the working tree.
 - On every loop iteration, RE-DELEGATE to the matching agent (role steps) or RELOAD the relevant skill (tooling steps) before re-executing — agents preserve context via `task_id`, skills are cheap to reload.
 - **On every loop iteration, send a Telegram loop-back notification** (iteration number + one-line reason + what is being redone) via the `telegram` skill BEFORE re-delegating. The send attempt is mandatory on every loop-back; delivery remains best-effort. Same for any question/blocking wait: question notification BEFORE waiting.
-- **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps of the same ticket in a single message. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel — their full pipelines (implementation, code review, QA) run concurrently via concurrent `task` calls, one per repo.
+- **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → security → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps of the same ticket in a single message. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel — their full pipelines (implementation, code review, QA) run concurrently via concurrent `task` calls, one per repo.
 
 ## GitHub (default: open a PR)
 

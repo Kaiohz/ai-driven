@@ -1,6 +1,6 @@
 ---
 description: Security audit agent with the exclusive security-audit skill (Cloudflare security-audit-skill). Answers security questions, performs focused vulnerability reviews, and runs the full 6-phase audit/pen-test workflow (reconnaissance, hunting waves, candidate validation, structured findings, independent verification, report) only when explicitly requested. Invoke for security questions, vulnerability reviews, security audits, or pen tests.
-model: soludevtech/ornith-1.5-35b
+model: soludevtech/qwen3.6-35b
 mode: all
 permissions:
   - action: "mcp_*"
@@ -38,6 +38,14 @@ Follow the skill EXACTLY. When it references companion files, read them from the
 - **Full audit mode**: only when the user explicitly asks to audit or pen-test a codebase, asks for a full/comprehensive/end-to-end security review, or requests report artifacts. Run all six phases and write the files the skill defines.
 - If the request could mean either mode, ask ONE focused question before creating files or starting the complete workflow.
 
+## Focused review (loop integration)
+
+When the task prompt comes from an implementation loop and provides a `LOOP_DIR` + a persist instruction, this is a FOCUSED review, not an audit:
+
+- **Guidance mode ONLY** — never run the six-phase workflow, never create an output directory, never write audit artifacts (no coverage ledger, no report-schema files).
+- **A focused review is NOT an audit of the application**: the scope is limited to the files listed in the task prompt (typically `SPEC_FILE` + `IMPL_FILES` + the code review). Hunt only vulnerabilities introduced or exposed by those files.
+- Persist the findings to `<LOOP_DIR>/security-reviews/<slug>.md` (reuse the `<slug>` from the SPEC_FILE path; `mkdir -p` first) and end your returned message with `SECURITY: <path|none>` (`none` = zero confirmed findings).
+
 ## Platform mapping (the skill is agent-neutral)
 
 - **Parent** = you (this agent): you coordinate the run and own the shared run files.
@@ -53,4 +61,4 @@ Apply the skill's sandbox rules without exception: source inspection is read-onl
 ## Confirmation
 
 End your returned message with:
-`AGENT_CONFIRM: security-agent completed <mode> -> findings=<N confirmed>, needs_validation=<N>, REPORT: <path|none>`
+`AGENT_CONFIRM: security-agent completed <mode> -> findings=<N confirmed>, needs_validation=<N>, SECURITY: <path|none>, REPORT: <path|none>`

@@ -65,8 +65,8 @@ The same 11 core agents exist in three profiles with different models. `switch-c
 
 | Profile | Implementation agents | Reviewer + QA agents | Extras |
 |---------|------------------------|----------------------|--------|
-| `cloud` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/minimax-m3.1-flash` | `security-agent`: `ollama-cloud/glm-5.3` |
-| `spark` | `soludevtech/qwen3.6-35b` | `soludevtech/ornith-1.5-35b` | `security-agent`: `soludevtech/ornith-1.5-35b` |
+| `cloud` | `ollama-cloud/glm-5.3-flash` | `ollama-cloud/minimax-m3.1-flash` | `security-agent`: `ollama-cloud/glm-5.3-flash` |
+| `spark` | `soludevtech/qwen3.6-35b` | `soludevtech/ornith-1.5-35b` | `security-agent`: `soludevtech/qwen3.6-35b` |
 | `hybrid` | `soludevtech/qwen3.6-35b` | `ollama-cloud/glm-5.3-flash` | `security-agent`: `ollama-cloud/glm-5.3-flash` + `agno-engineer`, `langchain-engineer`, `promptfoo-engineer` |
 
 ```bash
@@ -182,8 +182,9 @@ The `feature-implementation` skill orchestrates the full development cycle throu
                                       ▼
   PHASE 4: QUALITY ASSURANCE
   ┌──────────────────────────────────────────────────────────────────┐
-  │ code-reviewer → code-simplifier → linter → sonarfix → trivyfix   │
-  │ Review, simplify, lint, fix static analysis, fix vulnerabilities │
+  │ code-reviewer → security-agent (conditional focused security      │
+  │ review, step 4b) → code-simplifier → linter → sonarfix → trivyfix │
+  │ Review, security-check the diff, simplify, lint, fix findings     │
   └───────────────────────────────────┬──────────────────────────────┘
                                       ▼
   PHASE 5: DOCUMENTATION & VERIFICATION
@@ -212,6 +213,8 @@ The `telegram` skill is also used **mid-loop**: whenever the loop is blocked wai
 ### Security auditing (optional)
 
 For security questions, focused vulnerability reviews, or explicit full audits/pen-tests, invoke the `security-agent`. It carries the `security-audit` skill (Cloudflare's security-audit-skill): reconnaissance → coverage-led hunting waves → candidate validation → structured findings (`findings.json` validated against `report-schema.json`) → independent record verification → target-neutral report. By default it answers in guidance mode; the full 6-phase workflow and its output directory run only on explicit request.
+
+**Loop integration (step 4b):** the `feature-implementation-agents` / `loop-implementation-review-agents` workflows delegate a **conditional focused review** to `security-agent` right after the code review — guidance mode only, scope limited to the feature diff (never a full app audit), triggered only when the change touches a security-sensitive surface (auth, endpoints, secrets, data isolation, uploads, external calls, LLM prompts, crypto). Findings persist to `<LOOP_DIR>/security-reviews/<slug>.md` behind a `SECURITY: <path|none|skipped>` pointer; any confirmed finding loops back to the implementation step.
 
 ### Brainstorming workflow (optional, before implementation)
 

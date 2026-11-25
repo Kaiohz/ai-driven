@@ -24,7 +24,7 @@ Read and apply `/Users/yohan/.config/opencode/skills/_shared/TRACE_PROTOCOL.md` 
    ```
    Print both `LOOP_DIR` and `loop_id` at the start of the session. Reuse them for every trace/verify call.
 
-2. **After every `task` call (agent steps 0, 1, 2, 10)**: append a trace event with `type=agent`:
+2. **After every `task` call (agent steps 0, 1, 2, 4b, 10)**: append a trace event with `type=agent`:
    ```bash
    bash /Users/yohan/.config/opencode/skills/_shared/trace.sh \
      "<LOOP_DIR>" "<loop_id>" "<step>" "agent" "<agent_name>" "delegated" "<detail>"
@@ -55,11 +55,11 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
 ## CRITICAL RULES
 
 1. **You MUST delegate EVERY step to a dedicated agent via the `task` tool.** Executing a step yourself (writing code, writing tests, running review) is invalid — redo it via the matching agent.
-2. **You MUST follow EVERY step in order.** No step can be skipped, even if it seems trivial or unnecessary.
+2. **You MUST follow EVERY step in order.** No step can be skipped, even if it seems trivial or unnecessary. (Step 4b security is conditional by design: when no security-sensitive surface is touched, a printed `SECURITY: skipped (<reason>)` + traced `done` event is a valid completion — a silent skip is not.)
 3. **You MUST NOT create a PR until ALL prior steps are completed.** If you reach the PR step and realize you skipped a step, GO BACK and complete it via the matching agent.
 4. **Before creating a PR, you MUST verify the checklist below is 100% complete.** Print the checklist with checkmarks. If any step is unchecked, you cannot proceed.
 5. **If the user rejected a step** (e.g., QA was rejected), mark it as "skipped by user" — do NOT silently skip it.
-6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps of the same ticket in a single message. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel — their full pipelines (implementation, code review, QA) run concurrently via concurrent `task` calls, one per repo.
+6. **Parallelize only genuinely independent steps.** Tooling steps that operate on already-written code (lint, Sonar, Trivy, documentation) CAN run concurrently. NEVER parallelize the core dependency chain (test files → implementation → review → security → QA) — each step consumes the output of the previous one; do not launch multiple `task` calls for chain steps of the same ticket in a single message. Never run two tickets concurrently in the same working tree; tickets in different repos (different working trees) CAN be processed in parallel — their full pipelines (implementation, code review, QA) run concurrently via concurrent `task` calls, one per repo.
 7. **Inject the SKILL MANDATE into every agent task prompt.** Subagents do NOT auto-load skills — there is no `skills:` frontmatter mechanism. Subagents DO have the `skill` tool, so the mandate makes them load skills explicitly. The mandate MUST be the FIRST block of the prompt (before the objective and before the ARTIFACT CONTEXT):
 
    ```
@@ -80,10 +80,11 @@ This dual gate (trace file + in-output confirmation) guarantees no step is silen
    | `code-reviewer-python` | `code-reviewer`, `hexagonal-python-patterns`, `async-python-patterns`, `performance-audit`, `test-writer-python` |
    | `code-reviewer-react` | `code-reviewer`, `hexagonal-react-patterns`, `async-react-patterns`, `performance-audit`, `test-writer-react` |
    | `code-reviewer-nestjs` | `code-reviewer`, `hexagonal-nestjs-patterns`, `async-nestjs-patterns`, `performance-audit`, `test-writer-nestjs` |
+   | `security-agent` | `security-audit` (focused review in guidance mode — see step 4b) |
    | `tester-qa` | (no skills declared — omit the mandate) |
 
    **Gate:** the agent's returned message MUST contain a `SKILL_LOADED: <names>` line matching the mandate. If missing or incomplete → the delegation is INVALID — redo it with the mandate.
-9. **NEVER use the `general` agent as a fallback.** When a step requires an agent, you MUST use the DEDICATED agent from the Agent selection map (`test-writer`, `fastapi-hexagonal`, `react-hexagonal`, `nestjs-hexagonal`, `code-reviewer-<lang>`, `tester-qa`). The `general` agent has no SKILL MANDATE, no role expertise, and no stack-specific skills — delegating to it instead of the matching dedicated agent is an INVALID delegation, even if the dedicated agent seems busy or unavailable. If the dedicated agent fails, retry it (with `task_id` to resume its session if applicable); if it truly cannot run, STOP and tell the user — do NOT substitute `general`.
+9. **NEVER use the `general` agent as a fallback.** When a step requires an agent, you MUST use the DEDICATED agent from the Agent selection map (`test-writer`, `fastapi-hexagonal`, `react-hexagonal`, `nestjs-hexagonal`, `code-reviewer-<lang>`, `security-agent`, `tester-qa`). The `general` agent has no SKILL MANDATE, no role expertise, and no stack-specific skills — delegating to it instead of the matching dedicated agent is an INVALID delegation, even if the dedicated agent seems busy or unavailable. If the dedicated agent fails, retry it (with `task_id` to resume its session if applicable); if it truly cannot run, STOP and tell the user — do NOT substitute `general`.
 
 ## Stack detection (run BEFORE step 1)
 
@@ -109,6 +110,7 @@ Every stage produces an artifact. Every artifact is either persisted to the loop
 | Test files | `TEST_FILES: <paths>` | step 1 (test-writer) | in repo — agent returns paths | Steps 4, 10 (NOT step 2) |
 | Impl files | `IMPL_FILES: <paths>` | step 2 (impl) | in repo — agent returns paths | Steps 4, 10 |
 | Code review | `REVIEW: <path>` | step 4 (code-reviewer) | `<LOOP_DIR>/code-reviews/<slug>.md` | Step 2 (on loop-back), step 10 |
+| Security review | `SECURITY: <path>` | step 4b (security-agent) | `<LOOP_DIR>/security-reviews/<slug>.md` | Step 2 (on loop-back), step 12 |
 | Bug report | `BUG_REPORT: <path>` | step 10 (tester-qa) | `<LOOP_DIR>/bug-reports/<slug>.md` | Step 2 (on loop-back), step 4 (on re-review) |
 
 ### Per-stage forwarding matrix
@@ -118,6 +120,7 @@ Every stage produces an artifact. Every artifact is either persisted to the loop
 | 1 (TDD) | test-writer | `SPEC_FILE` |
 | 2 (Impl) | impl agent | `SPEC_FILE` + (on loop-back: `REVIEW` + `BUG_REPORT`) — **no TEST_FILES** (impl works from the spec; the reviewer validates tests↔impl consistency) |
 | 4 (Review) | code-reviewer | `SPEC_FILE` + `TEST_FILES` + `IMPL_FILES` + (on re-review: prev `REVIEW` + `BUG_REPORT` if QA also failed) |
+| 4b (Security) | security-agent | `SPEC_FILE` + `IMPL_FILES` + `REVIEW` + (on re-review: prev `SECURITY`) |
 | 10 (QA) | tester-qa | `SPEC_FILE` + `TEST_FILES` + `IMPL_FILES` + `REVIEW` + (on loop-back: prev `BUG_REPORT`) |
 
 ### LOOP_DIR detection
@@ -167,6 +170,7 @@ Fallback: if no spec file path is provided and no `SPEC_FILE` line is found, fal
 | 1 (TDD) | `test-writer` | `test-writer` | `test-writer` |
 | 2 (Impl) | `fastapi-hexagonal` | `react-hexagonal` | `nestjs-hexagonal` |
 | 4 (Review) | `code-reviewer-python` | `code-reviewer-react` | `code-reviewer-nestjs` |
+| 4b (Security) | `security-agent` (conditional — see step 4b) | `security-agent` (conditional — see step 4b) | `security-agent` (conditional — see step 4b) |
 | 5 (Simplify) | `code-simplifier` skill (run yourself) | `code-simplifier` skill (run yourself) | `code-simplifier` skill (run yourself) |
 | 6 (Lint) | `linter` skill (run yourself — ruff + pyright, fix all until 0) | `linter` skill (run yourself) | `linter` skill (run yourself) |
 | 8 (Sonar) | `sonarfix` skill (run yourself) | `sonarfix` skill (run yourself) | `sonarfix` skill (run yourself) |
@@ -176,7 +180,7 @@ Fallback: if no spec file path is provided and no `SPEC_FILE` line is found, fal
 | 12 (PR) | `githubpr` skill (run yourself) | `githubpr` skill (run yourself) | `githubpr` skill (run yourself) |
 | 13 (Notify) | `telegram` skill (run yourself) | `telegram` skill (run yourself) | `telegram` skill (run yourself) |
 
-**Note:** Steps that are pure skills (code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr, telegram) are loaded via the `skill` tool directly by you (the orchestrator) — they are not agents and cannot be delegated via `task`. Steps that are roles (TDD, implementation, code review, QA) ARE delegated to agents. The `code-reviewer-<lang>` and `tester-qa` agents are vision-capable — they can read screenshots and UI state. The `product-owner` agent is NOT part of the loop — the user provides the spec/requirements directly as input to the loop.
+**Note:** Steps that are pure skills (code-simplifier, linter, sonarfix, trivyfix, documentation-writer, githubpr, telegram) are loaded via the `skill` tool directly by you (the orchestrator) — they are not agents and cannot be delegated via `task`. Steps that are roles (TDD, implementation, code review, security focused review, QA) ARE delegated to agents. The `code-reviewer-<lang>` and `tester-qa` agents are vision-capable — they can read screenshots and UI state. The `product-owner` agent is NOT part of the loop — the user provides the spec/requirements directly as input to the loop.
 
 ## How to delegate to an agent
 
@@ -203,6 +207,7 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 - [ ] 2. IMPLEMENTATION — hexagonal agent (backend or frontend) → feature implemented (Green) + `IMPL_FILES: <paths>` pointer returned
 - [ ] 3. TESTED — targeted test run (feature specs + affected specs), all green
 - [ ] 4. CODE REVIEW — code-reviewer-<lang> agent → 0 critical + score ≥ 8/10 + `REVIEW: <path>` pointer returned
+- [ ] 4b. SECURITY — security-agent focused review (conditional: `SECURITY: skipped (<reason>)` is valid when no security-sensitive surface is touched) → 0 confirmed findings + `SECURITY: <path|none|skipped>` pointer returned
 - [ ] 5. CODE SIMPLIFIER — code-simplifier skill → complexity reduced
 - [ ] 6. LINTER — linter skill → 0 lint AND type issues (ruff + pyright)
 - [ ] 7. UNIT TESTS — all unit tests green
@@ -292,6 +297,19 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 3. **Collect the `REVIEW:` pointer** from the agent's returned message — grep the line and store it for forwarding to step 10 and step 2 on loop-back.
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "4" "agent" "code-reviewer-<lang>" "delegated" "score=<S>, critical=<N>, REVIEW: <path|none>"`.
 5. before step 5: `verify-step.sh ... "4" "agent" "code-reviewer-<lang>"` — if fail, redo step 4.
+
+### 4b. Security Focused Review — `security-agent` (conditional)
+**ACTIONS (in order):**
+1. Decide whether the change touches a security-sensitive surface (grep the diff / `IMPL_FILES` + the spec for: auth/sessions/JWT/guards/permissions, new or modified HTTP endpoints or input parsing, secrets/credentials/env handling, data isolation (multi-tenant, ownership checks), file uploads, webhooks/payments/external API calls, LLM/AI prompt construction, crypto/hashing).
+   - **Triggered** → call the `task` tool NOW with `subagent_type: security-agent`. The task prompt MUST:
+     - Include the SKILL MANDATE block: `security-audit`, plus the explicit instruction that this is a FOCUSED review in guidance mode — scope limited to the listed files, NOT an audit: do NOT run the six-phase workflow, do NOT create an output directory, do NOT write audit artifacts.
+     - Include the CONTEXT block (per the forwarding matrix, step 4b gets `SPEC_FILE` + `IMPL_FILES` + `REVIEW`; on re-review add prev `SECURITY`).
+     - Include the persistence block: persist findings to `<LOOP_DIR>/security-reviews/<slug>.md` (`mkdir -p` first, reuse the `<slug>` from the SPEC_FILE path) and print `SECURITY: <path|none>` before the AGENT_CONFIRM line.
+   - **Not triggered** → print `SECURITY: skipped (no security-sensitive surface: <one-line reason>)` and trace step 4b as `type=agent`, target `security-agent`, `status=done` (the verify gate passes — no delegation needed).
+2. **Gate:** `SECURITY: <path>` with ≥1 confirmed finding → loop back to step 2 (delegate to the implementation agent with `task_id` to resume the session, include `SPEC_FILE` + `REVIEW` + `SECURITY` in the CONTEXT block), fix, then re-run steps 3-4b. `SECURITY: none` or `skipped` passes. needs_validation findings do NOT block the loop, but MUST be embedded in the PR comment (step 12).
+3. **Collect the `SECURITY:` pointer** from the agent's returned message — grep the line and store it for step 12 and step 2 on loop-back.
+4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "4b" "agent" "security-agent" "delegated" "findings=<N>, SECURITY: <path|none>"` (or `"done" "skipped: <reason>"` when skipped).
+5. before step 5: `verify-step.sh ... "4b" "agent" "security-agent"` — if fail, redo step 4b.
 
 ### 5. Code Simplifier
 **ACTIONS (in order):**
@@ -393,7 +411,7 @@ Grep the `BUG_REPORT: <path|none>` line from the tester-qa agent's returned mess
 ### 12. PR
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `githubpr`.
-2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Post the full loop results comment per the githubpr skill — **QA evidence is a hard gate**: front/fullstack → the QA replay videos MUST be attached inline and verified (every `![]()` rewritten to a `github.com/user-attachments/...` URL in the posted body; use the `QA_VIDEO_REPORT` videos from step 10); backend-only → the curl evidence from `<LOOP_DIR>/qa/curl-logs.json` MUST be embedded. A PR comment without the matching evidence = PR step NOT done. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
+2. if no Jira ticket, create a conventional descriptive branch name. Open one detailed draft PR per modified repo. Commits are conventional. Post the full loop results comment per the githubpr skill — **QA evidence is a hard gate**: front/fullstack → the QA replay videos MUST be attached inline and verified (every `![]()` rewritten to a `github.com/user-attachments/...` URL in the posted body; use the `QA_VIDEO_REPORT` videos from step 10); backend-only → the curl evidence from `<LOOP_DIR>/qa/curl-logs.json` MUST be embedded. A PR comment without the matching evidence = PR step NOT done. If step 4b produced a security review, embed its findings (especially needs_validation ones) in the PR comment. Do NOT merge — the user must be able to test on the local stack. Wait for CI green. If PR reviewer feedback arrives, address only critical items in a single pass — do NOT loop on PR reviews (the in-loop code review gate is authoritative).
 3. print `SKILL_CONFIRM: githubpr loaded and applied on step 12`.
 4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "12" "skill" "githubpr" "loaded" "<PR URLs>"`.
 5. before step 13: `verify-step.sh ... "12" "skill" "githubpr"` — if fail, redo step 12.
@@ -412,8 +430,9 @@ Grep the `BUG_REPORT: <path|none>` line from the tester-qa agent's returned mess
 - The user provides the spec/requirements as input to the loop — no discovery phase inside the loop. Prefer a spec file path (`<LOOP_DIR>/specs/<slug>.md`) produced by the product-owner agent. Fall back to conversation context only if no spec file is available.
 - **Artifact forwarding is systematic.** Every agent gets the CONTEXT block with all relevant artifact pointers (per the forwarding matrix). Never paste file contents — always pass paths and instruct agents to `read` in full. A summarized or pasted-but-truncated file is an invalid delegation.
 - **If code review reveals issues** (critical > 0 or score < 8), iterate back to implementation (delegate to the implementation agent with `task_id` to resume the session). Include `SPEC_FILE` + `REVIEW` in the CONTEXT block so the impl agent reads the review and knows exactly what to fix.
+- **If the security focused review confirms findings** (`SECURITY: <path>` with ≥1 confirmed), iterate back to implementation with `SPEC_FILE` + `REVIEW` + `SECURITY` in the CONTEXT block (path-only — agents read the files themselves). needs_validation findings do NOT block — embed them in the PR comment (step 12). Loop until the security-agent returns `SECURITY: none`.
 - **If QA reveals bugs**, iterate back to implementation with `SPEC_FILE` + `REVIEW` + `BUG_REPORT` in the CONTEXT block (path-only — agents read the files themselves). Loop until the tester-qa agent returns `BUG_REPORT: none`.
 - When chaining multiple tickets, be EXTRA vigilant about completing all steps — this is when steps get skipped.
 - **Delegating is cheap.** When in doubt, delegate again to the matching agent with the CONTEXT block + previous step artifacts. The `task` tool is the canonical way to guarantee the agent's skills are loaded and the work is done by the right role.
 - **When the loop is blocked waiting for the user** (ambiguous stack, rejected step, unavailable agent, any question or decision needed), load the `telegram` skill FIRST and send a question notification BEFORE waiting — the user is often away from the terminal. A failed/blocked Telegram send never blocks: still ask the question in the session.
-- **On EVERY loop-back iteration** (QA bugs, review < 8/10 or criticals, failing tests, CI red, rejected step), load the `telegram` skill FIRST and send a loop-back notification (iteration number + one-line reason + what is being redone) BEFORE re-delegating. The send attempt is mandatory on every iteration; delivery remains best-effort.
+- **On EVERY loop-back iteration** (QA bugs, review < 8/10 or criticals, security findings, failing tests, CI red, rejected step), load the `telegram` skill FIRST and send a loop-back notification (iteration number + one-line reason + what is being redone) BEFORE re-delegating. The send attempt is mandatory on every iteration; delivery remains best-effort.
