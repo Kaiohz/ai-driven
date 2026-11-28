@@ -49,10 +49,11 @@ test/
 ## 🎯 Workflow
 1. **Ask for context** — which route/endpoint (feature) needs testing?
 2. **Read the source code** — the controller AND the whole chain it triggers (use case, ports, adapters, entities).
-3. **Classify dependencies** — internal → real impl (already wired in the AppModule); external → `overrideProvider` with factories from `test/fixtures/external.ts`.
-4. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test via Supertest on the real AppModule, in `test/behavioral/<feature>/<endpoint>.spec.ts`); `references/processor-test.md` when the logic is triggered by a queue/processor/scheduler (real message/job → side effects); `references/testcontainers.md` for real infrastructure; `references/setup.md` (jest config, fixtures, auth helpers). Never delete logic with no route/processor and never invent an artificial entry point just to test it.
-5. **Write tests** — AAA pattern, explicit names, one logical behavior per test. Act = one Supertest request; Assert = status + body + persistence via the real repository.
-6. **Run** — `npm run test` (see `references/commands.md`).
+3. **Search for existing specs first** — grep/glob `test/behavioral/` for spec files already covering the same entry point (route path, endpoint name, processor name). If found, extend those files with the new test cases instead of creating new ones — create a new file ONLY when no existing spec covers the entry point. Never duplicate coverage that already exists.
+4. **Classify dependencies** — internal → real impl (already wired in the AppModule); external → `overrideProvider` with factories from `test/fixtures/external.ts`.
+5. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test via Supertest on the real AppModule, in `test/behavioral/<feature>/<endpoint>.spec.ts`); `references/processor-test.md` when the logic is triggered by a queue/processor/scheduler (real message/job → side effects); `references/testcontainers.md` for real infrastructure; `references/setup.md` (jest config, fixtures, auth helpers). Never delete logic with no route/processor and never invent an artificial entry point just to test it.
+6. **Write tests** — AAA pattern, explicit names, one logical behavior per test. Act = one Supertest request; Assert = status + body + persistence via the real repository.
+7. **Run** — `npm run test` (see `references/commands.md`).
 
 ## 🛡️ Edge cases (mandatory coverage)
 Every test suite MUST cover edge cases, not just the happy path. For each route under test, include tests asserting the correct HTTP status + error body:

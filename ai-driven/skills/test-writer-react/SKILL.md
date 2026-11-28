@@ -32,10 +32,11 @@ A stub/fake that diverges silently from the real implementation produces tests t
 ## 🎯 Workflow
 1. **Ask for context** — which component, hook, or service needs testing?
 2. **Read the source code** — understand props, state, side effects, external dependencies.
-3. **Classify dependencies** — internal → real impl; external → mock via `vi.mock` + fixtures in `tests/fixtures/external.ts` or MSW handlers.
-4. **Load templates** — `references/setup.md` (vitest config, custom render); `references/component-test.md`; `references/hook-test.md`; `references/msw.md` for API boundary; `references/testcontainers.md` for real-backend E2E.
-5. **Write tests** — AAA pattern, query by role, explicit names, one logical behavior per test.
-6. **Run** — `pnpm vitest` (see `references/commands.md`).
+3. **Search for existing specs first** — grep/glob `tests/behavioral/` for spec files already covering the same entry point (component, hook, service name). If found, extend those files with the new test cases instead of creating new ones — create a new file ONLY when no existing spec covers the entry point. Never duplicate coverage that already exists.
+4. **Classify dependencies** — internal → real impl; external → mock via `vi.mock` + fixtures in `tests/fixtures/external.ts` or MSW handlers.
+5. **Load templates** — `references/setup.md` (vitest config, custom render); `references/component-test.md`; `references/hook-test.md`; `references/msw.md` for API boundary; `references/testcontainers.md` for real-backend E2E.
+6. **Write tests** — AAA pattern, query by role, explicit names, one logical behavior per test.
+7. **Run** — `pnpm vitest` (see `references/commands.md`).
 
 ## 🛡️ Edge cases (mandatory coverage)
 Every test suite MUST cover edge cases, not just the happy path. For each component / hook / service under test, include tests for:

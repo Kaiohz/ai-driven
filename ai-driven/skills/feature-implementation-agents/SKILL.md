@@ -203,7 +203,7 @@ You MUST forward relevant artifacts between agents: test files → implementatio
 You MUST maintain this checklist throughout the implementation. Print it before creating the PR to verify completeness:
 
 ```
-- [ ] 1. TDD — test-writer agent → failing tests written (Red) + `TEST_FILES: <paths>` pointer returned
+- [ ] 1. TDD — test-writer agent → failing tests written (Red), extending existing specs first + `TEST_FILES: <paths>` pointer returned
 - [ ] 2. IMPLEMENTATION — hexagonal agent (backend or frontend) → feature implemented (Green) + `IMPL_FILES: <paths>` pointer returned
 - [ ] 3. TESTED — targeted test run (feature specs + affected specs), all green
 - [ ] 4. CODE REVIEW — code-reviewer-<lang> agent → 0 critical + score ≥ 8/10 + `REVIEW: <path>` pointer returned
@@ -236,10 +236,11 @@ You MUST maintain this checklist throughout the implementation. Print it before 
      SPEC_FILE: <path>
      ```
      If in `SPEC_MODE: conversation-fallback`, include the available requirements context directly in the task prompt instead.
-   - Instruct the agent to end its returned message with `TEST_FILES: <comma-separated absolute paths>` followed by `AGENT_CONFIRM: test-writer delegated on step 1 → <N> failing test files written`.
+   - Instruct the agent to search the existing test suite FIRST — grep/glob for spec files already covering the same entry point or feature (route path, endpoint/use case name, component/hook name) and EXTEND those files with the new failing test cases instead of creating new ones; create a new test file ONLY when no existing spec covers the entry point. Never duplicate coverage that already exists.
+   - Instruct the agent to end its returned message with `TEST_FILES: <comma-separated absolute paths to every test file written or modified>` followed by `AGENT_CONFIRM: test-writer delegated on step 1 → <N> failing test files written or modified`.
 2. the agent loads `test-writer-<lang>` (per detected stack) via the SKILL MANDATE injected at the top of its task prompt — verify `SKILL_LOADED:` in its output.
 3. **Collect the `TEST_FILES:` pointer** from the agent's returned message — grep the line and store it for forwarding to steps 4 and 10.
-4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "1" "agent" "test-writer" "delegated" "<N> test files"`.
+4. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "1" "agent" "test-writer" "delegated" "<N> test files written or modified"`.
 5. before step 2: `verify-step.sh ... "1" "agent" "test-writer"` — if fail, redo step 1.
 
 ### 2. Implementation — hexagonal agent

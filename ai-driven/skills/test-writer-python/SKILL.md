@@ -49,10 +49,11 @@ A fake/stub that diverges silently from the real implementation produces tests t
 ## 🎯 Workflow
 1. **Ask for context** — which route/endpoint (feature) needs testing?
 2. **Read the source code** — the router AND the whole chain it triggers (use case, ports, adapters, entities).
-3. **Classify dependencies** — internal → real impl, wired exactly as in production; external → mock via `app.dependency_overrides` or fixtures in `tests/fixtures/external.py`.
-4. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test from the router, in `tests/behavioral/<feature>/test_<endpoint>.py`); `references/consumer-test.md` when the logic is triggered by a queue/cron consumer (real message → side effects); `references/conftest.md` for app/client/db fixtures and auth helpers; `references/testcontainers.md` for real infrastructure; `references/external-fixtures.md` for mock factories with configurable failures. Never delete logic with no route/consumer and never invent an artificial entry point just to test it.
-5. **Write tests** — AAA pattern (Arrange, Act, Assert), explicit names, one logical behavior per test. Act = one HTTP request; Assert = status + body + side effects.
-6. **Run** — `uv run pytest` (see `references/commands.md`).
+3. **Search for existing specs first** — grep/glob `tests/behavioral/` for spec files already covering the same entry point (route path, endpoint name, consumer/flow name). If found, extend those files with the new test cases instead of creating new ones — create a new file ONLY when no existing spec covers the entry point. Never duplicate coverage that already exists.
+4. **Classify dependencies** — internal → real impl, wired exactly as in production; external → mock via `app.dependency_overrides` or fixtures in `tests/fixtures/external.py`.
+5. **Load templates** — `references/router-test.md` (PRIMARY: behavioral test from the router, in `tests/behavioral/<feature>/test_<endpoint>.py`); `references/consumer-test.md` when the logic is triggered by a queue/cron consumer (real message → side effects); `references/conftest.md` for app/client/db fixtures and auth helpers; `references/testcontainers.md` for real infrastructure; `references/external-fixtures.md` for mock factories with configurable failures. Never delete logic with no route/consumer and never invent an artificial entry point just to test it.
+6. **Write tests** — AAA pattern (Arrange, Act, Assert), explicit names, one logical behavior per test. Act = one HTTP request; Assert = status + body + side effects.
+7. **Run** — `uv run pytest` (see `references/commands.md`).
 
 ## 🛡️ Edge cases (mandatory coverage)
 Every test suite MUST cover edge cases, not just the happy path. For each route under test, include tests asserting the correct HTTP status + error body:

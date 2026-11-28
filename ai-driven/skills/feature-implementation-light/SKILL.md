@@ -91,7 +91,7 @@ If a spec or requirements context exists, use it as the requirements context for
 You MUST maintain this checklist throughout the implementation. Print it before declaring the task done to verify completeness:
 
 ```
-- [ ] 1. TDD — load test-writer-<lang> + hexagonal-<lang> + async-<lang> skills, write failing tests (Red), print `TEST_FILES: <paths>`
+- [ ] 1. TDD — load test-writer-<lang> + hexagonal-<lang> + async-<lang> skills, write failing tests (Red) extending existing specs first, print `TEST_FILES: <paths>`
 - [ ] 2. IMPLEMENTATION — load hexagonal-<lang> + async-<lang> + performance-audit skills, implement (Green), print `IMPL_FILES: <paths>`, run targeted tests all green
 - [ ] 3. CODE REVIEW — load code-reviewer skill, review, 0 critical + score ≥ 8/10, persist to `<LOOP_DIR>/code-reviews/<slug>.md`, print `REVIEW: <path>`
 - [ ] 4. CODE SIMPLIFIER — load code-simplifier skill, refactor, re-run tests green
@@ -109,11 +109,12 @@ You MUST maintain this checklist throughout the implementation. Print it before 
 ### 1. Test-First Development (Red)
 **ACTIONS (in order):**
 1. call the `skill` tool NOW with `test-writer-<lang>` (and `hexagonal-<lang>`, `async-<lang>` per the skill map).
-2. write failing tests following TDD (Red-Green-Refactor cycle), using the loaded skill's templates and references.
-3. print `TEST_FILES: <comma-separated absolute paths to every test file written>` so the review (step 3) can read them.
-4. print `SKILL_CONFIRM: test-writer-<lang> loaded and applied on step 1`.
-5. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "1" "skill" "test-writer-<lang>" "loaded" "<N> test files written"`.
-6. before step 2: `bash .../verify-step.sh ... "1" "skill" "test-writer-<lang>"` — if fail, redo step 1.
+2. **Search for existing tests FIRST** — before creating any new test file, grep/glob the existing test suite (`tests/behavioral/` for Python, `tests/behavioral/` or `test/behavioral/` for TypeScript) for spec files already covering the same entry point or feature (route path, endpoint/use case name, component/hook name). If one matches, EXTEND the existing file — add the new failing test cases to it — instead of creating a new one. Create a new test file ONLY when no existing spec covers the entry point. Never duplicate coverage that already exists.
+3. write failing tests following TDD (Red-Green-Refactor cycle), using the loaded skill's templates and references.
+4. print `TEST_FILES: <comma-separated absolute paths to every test file written or modified>` so the review (step 3) can read them.
+5. print `SKILL_CONFIRM: test-writer-<lang> loaded and applied on step 1`.
+6. `bash .../trace.sh "<LOOP_DIR>" "<loop_id>" "1" "skill" "test-writer-<lang>" "loaded" "<N> test files written or modified"`.
+7. before step 2: `bash .../verify-step.sh ... "1" "skill" "test-writer-<lang>"` — if fail, redo step 1.
 
 ### 2. Implementation (Green + targeted tests)
 **ACTIONS (in order):**
